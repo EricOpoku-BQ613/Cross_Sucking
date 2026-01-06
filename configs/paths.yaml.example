@@ -1,0 +1,89 @@
+# Data Paths Configuration
+# ========================
+# Edit this file with your actual paths (gitignored)
+
+# Root data directory
+data_root: "F:\\Downey cross-sucking videos 2024"
+
+# Labeled data paths
+labeled:
+  # Group 1 - Cameras 7, 8, 9, 10
+  group1_day1:
+    path: "F:\\Downey cross-sucking videos 2024\\Group 1 Day 1"
+    cameras: [7, 8, 9, 10]
+    group_id: 1
+    day: 1
+  group1_day4:
+    path: "F:\\Downey cross-sucking videos 2024\\Group 1 Day 4"
+    cameras: [7, 8, 9, 10]
+    group_id: 1
+    day: 4
+    
+  # Group 2 - Cameras 10, 11, 12, 116 (note: 116 may be typo for 16)
+  group2_day4:
+    path: "F:\\Downey cross-sucking videos 2024\\Group 2 Day 4"
+    cameras: [10, 11, 12, 116]  # Check if 116 should be 16
+    group_id: 2
+    day: 4
+    
+  # Group 3 - Cameras 8, 12, 14, 16
+  group3_day4:
+    path: "F:\\Downey cross-sucking videos 2024\\Group 3 Day 4"
+    cameras: [8, 12, 14, 16]
+    group_id: 3
+    day: 4
+
+# Unlabeled data paths (2 weeks post-grouping)
+unlabeled:
+  root: "F:\\Downey cross-sucking videos 2024\\2 weeks post-grouping (not annotated)"
+  groups:
+    group2_week2:
+      path: "F:\\Downey cross-sucking videos 2024\\2 weeks post-grouping (not annotated)\\Group 2 Week 2"
+      cameras: [1, 7, 8, 9]
+      group_id: 2
+    group3_week2:
+      path: "F:\\Downey cross-sucking videos 2024\\2 weeks post-grouping (not annotated)\\Group 3 Week 2"
+      cameras: [1, 7, 8, 9]
+      group_id: 3
+    group4_week2:
+      path: "F:\\Downey cross-sucking videos 2024\\2 weeks post-grouping (not annotated)\\Group 4 Week 2"
+      cameras: [1, 7, 8, 9]
+      group_id: 4
+    group5_week2:
+      path: "F:\\Downey cross-sucking videos 2024\\2 weeks post-grouping (not annotated)\\Group 5 Week 2"
+      cameras: [1, 7, 8, 9]
+      group_id: 5
+    group6_week2:
+      path: "F:\\Downey cross-sucking videos 2024\\2 weeks post-grouping (not annotated)\\Group 6 Week 2"
+      cameras: [1, 7, 8, 9]
+      group_id: 6
+
+# Annotation files
+annotations:
+  interactions: "F:\\Downey cross-sucking videos 2024\\Combined_Group_1_Days_1_and_4_partial_copy_cleaned_for_YY_and_BARN_lab_251016.xlsx"
+  smoke_test: "F:\\Downey cross-sucking videos 2024\\smoke_test_59.csv"
+
+# Video filename pattern
+video_pattern:
+  # Pattern: N884A6_ch7_main_20240706043000_20240706050001_0001.mp4
+  regex: "N884A6_ch(\\d+)_main_(\\d{14})_(\\d{14})"
+  datetime_format: "%Y%m%d%H%M%S"
+  groups:
+    channel: 1
+    start_time: 2
+    end_time: 3
+
+# Camera to Group mapping (discovered from folder structure)
+camera_mapping:
+  # Different groups use different camera sets
+  group1: [7, 8, 9, 10]
+  group2_labeled: [10, 11, 12, 116]  # Day 4
+  group2_unlabeled: [1, 7, 8, 9]     # Week 2
+  group3_labeled: [8, 12, 14, 16]    # Day 4
+  group3_unlabeled: [1, 7, 8, 9]     # Week 2
+
+# Known issues to check
+qa_checks:
+  - "Cam 116 in Group 2 Day 4 - verify if typo for Cam 16"
+  - "Different camera sets between labeled and unlabeled for same group"
+  - "Check for duplicate videos across folders"

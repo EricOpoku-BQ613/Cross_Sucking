@@ -1,0 +1,66 @@
+# Object Detection Configuration
+# ===============================
+
+defaults:
+  - base
+
+detector:
+  model: yolov8m  # yolov8n, yolov8s, yolov8m, yolov8l, yolov8x
+  
+  # Pretrained weights
+  pretrained: true
+  weights: null  # Path to custom weights, or null for COCO pretrained
+  
+  # Classes
+  classes: ["calf"]
+  num_classes: 1
+  
+  # Inference settings
+  inference:
+    confidence: 0.5
+    iou_threshold: 0.45
+    max_detections: 20
+    
+  # Image settings
+  image_size: 640
+  
+# Fine-tuning (if needed)
+finetune:
+  enabled: false
+  
+  data:
+    train_images: data/processed/detection/train/images
+    train_labels: data/processed/detection/train/labels
+    val_images: data/processed/detection/val/images
+    val_labels: data/processed/detection/val/labels
+    
+  training:
+    epochs: 50
+    batch_size: 16
+    optimizer: SGD
+    lr: 0.01
+    momentum: 0.937
+    weight_decay: 0.0005
+    
+  augmentation:
+    mosaic: 1.0
+    mixup: 0.0
+    hsv_h: 0.015
+    hsv_s: 0.7
+    hsv_v: 0.4
+    degrees: 0.0
+    translate: 0.1
+    scale: 0.5
+    flipud: 0.0
+    fliplr: 0.5
+
+# Output
+output:
+  save_dir: data/interim/detections
+  save_format: json  # json or txt
+  save_images: false  # Save images with boxes for debugging
+  
+# Batch processing
+batch:
+  videos_per_batch: 10
+  frames_per_video: all  # or integer for sampling

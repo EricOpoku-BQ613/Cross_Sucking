@@ -1,0 +1,118 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+eggs/
+*.egg-info/
+*.egg
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.spyproject/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints/
+
+# Data - Large files not committed
+data/raw/
+data/interim/
+data/processed/
+*.mp4
+*.MP4
+*.avi
+*.mov
+*.mkv
+
+# Keep manifest structure but not contents
+data/manifests/*.json
+data/manifests/*.csv
+!data/manifests/.gitkeep
+
+# Annotations - keep rules, not raw data
+data/annotations/*.xlsx
+data/annotations/qa_flags.csv
+!data/annotations/mapping_rules.yaml
+!data/annotations/.gitkeep
+
+# Model weights
+*.pth
+*.pt
+*.ckpt
+*.h5
+*.hdf5
+*.safetensors
+
+# Runs/experiments
+runs/
+!runs/.gitkeep
+
+# Logs
+logs/
+*.log
+
+# Config with local paths
+configs/paths.yaml
+!configs/paths.yaml.example
+
+# Environment
+.env
+.env.local
+*.pem
+*.key
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# MyPy
+.mypy_cache/
+
+# Ruff
+.ruff_cache/
+
+# Weights & Biases
+wandb/
+
+# Large temporary files
+*.zip
+*.tar.gz
+*.tar
+
+# PyTorch Lightning / TensorBoard
+lightning_logs/
+tb_logs/
+events.out.tfevents.*
+
+# MLflow (if ever used)
+mlruns/
+
+# mac/windows temp
+*.tmp
+
+# If you ever create a top-level dataset folder
+datasets/
+data/**/dataset_cache/
+
+# Decord / video extraction caches (sometimes appear)
+.cache/
+

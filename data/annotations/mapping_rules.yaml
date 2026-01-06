@@ -1,0 +1,87 @@
+# Label Mapping Rules
+# ===================
+# Deterministic rules for normalizing annotations
+# All changes are audited and traceable
+
+version: "1.0"
+created: "2024-12-17"
+author: "Your Name"
+
+# Behavior label normalization
+behavior:
+  # Standard labels (no change)
+  ear: ear
+  tail: tail
+  teat: teat
+  other: other
+  none: none
+  
+  # Ambiguous → normalized
+  "tail/teat?": tail      # Conservative: default to more common
+  "tail/teat": tail       # Same
+  "mouth": other          # Mouth sucking → other
+  "mouth?": other         # Uncertain mouth → other
+  "tailhead": tail        # Tailhead region → tail
+  
+  # Case normalization
+  "Ear": ear
+  "TAIL": tail
+  "Teat": teat
+
+# Role/ended-by normalization
+ended_by:
+  patterns:
+    initiator:
+      - "initiator"
+      - "initiator-stopped"
+      - "initiator-moved"
+      - "initiator stopped"
+    receiver:
+      - "receiver"
+      - "receiver-moved"
+      - "receiver-walked"
+      - "receiver moved"
+    interrupted:
+      - "interrupted"
+      - "lost visibility"
+      - "video ended"
+  default: unknown
+
+# Pen location normalization
+pen_location:
+  # Standard
+  front: front
+  middle: middle
+  back: back
+  
+  # Variations
+  "front-at feeder": front
+  "front-at water": front
+  "middlle": middle        # Typo fix
+  " back": back            # Leading space fix
+  "center": middle
+
+# Duration validation rules
+duration:
+  min_valid: 0             # 0 seconds is valid (instantaneous)
+  max_valid: 300           # 5 minutes max (flag if longer)
+  flag_threshold: 120      # Flag events > 2 minutes for review
+
+# Calf ID validation
+calf_ids:
+  # Known valid IDs from Group 1 Day 1 data
+  valid_ranges:
+    - [5680, 5720]         # Expected ID range
+  flag_if_outside: true
+
+# Camera validation
+cameras:
+  group1: [7, 8, 9, 10]
+  group2_labeled: [10, 11, 12, 116]
+  group3_labeled: [8, 12, 14, 16]
+  
+  # Known issues
+  issues:
+    - camera: 116
+      group: 2
+      note: "Verify if typo for Cam 16"

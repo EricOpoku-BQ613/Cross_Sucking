@@ -1,0 +1,112 @@
+# Interaction Model (RCGAN) Configuration
+# ========================================
+
+defaults:
+  - base
+
+model:
+  name: rcgan  # role-conditioned graph attention network
+  
+  # Input features
+  input:
+    appearance_dim: 768    # VideoMAE embedding dim
+    motion_dim: 128        # Flow/velocity features
+    pose_dim: 32           # Keypoint features (if enabled)
+    geometry_dim: 16       # Relative position/orientation
+    
+  # Graph structure
+  graph:
+    node_dim: 256
+    edge_dim: 64
+    num_nodes: 2           # Two calves per tube
+    
+  # Transformer/GNN backbone
+  backbone:
+    type: graph_transformer  # graph_transformer, gat, gcn
+    hidden_dim: 256
+    num_heads: 8
+    num_layers: 4
+    dropout: 0.1
+    
+    # Role conditioning (main novelty)
+    role_conditioning:
+      enabled: true
+      method: asymmetric_attention  # asymmetric_attention, role_embedding
+      
+  # Task heads
+  heads:
+    interaction:
+      hidden_dim: 128
+      num_classes: 2       # is_interaction: yes/no
+      
+    role:
+      hidden_dim: 128
+      num_classes: 2       # initiator/receiver
+      
+    target:
+      hidden_dim: 128
+      num_classes: 4       # ear/tail/teat/other
+      
+    boundary:
+      hidden_dim: 128
+      predict_offset: true  # Refine start/end
+
+# Loss weights
+loss:
+  interaction: 1.0
+  role: 0.5
+  target: 0.5
+  boundary: 0.3
+  
+  # Focal loss for imbalanced classes
+  focal:
+    enabled: true
+    gamma: 2.0
+    alpha: null  # Auto-compute from class frequencies
+    
+  # Consistency constraints
+  consistency:
+    enabled: true
+    weight: 0.1
+    # Constraints: mutual exclusion, temporal ordering
+
+# Training
+training:
+  epochs: 100
+  batch_size: 32
+  
+  optimizer:
+    name: adamw
+    lr: 1e-4
+    weight_decay: 0.01
+    
+  scheduler:
+    name: cosine
+    warmup_epochs: 5
+    min_lr: 1e-6
+    
+  # Class balancing
+  sampler: weighted  # weighted, sqrt, none
+  
+  # Early stopping
+  early_stopping:
+    patience: 15
+    metric: val_map
+    mode: max
+
+# Data
+data:
+  tubes_dir: data/processed/tubes
+  splits_dir: data/splits
+  
+  # Augmentation
+  augment:
+    temporal_jitter: 0.1   # Shift start/end by up to 10%
+    feature_dropout: 0.1   # Drop features randomly
+
+# Checkpointing
+checkpoint:
+  save_dir: runs/interaction
+  save_every: 5
+  keep_best: 3
+  monitor: val_map

@@ -1,0 +1,31 @@
+{
+  "generated_utc": "2025-12-19T01:30:28Z",
+  "seed": 1337,
+  "val_frac": 0.2,
+  "stratified": true,
+  "policy": {
+    "unit_of_split": "video_id",
+    "grouping_rule": "basename_lower"
+  },
+  "inputs": {
+    "linked_manifest": "data/manifests/linked_events.csv",
+    "smoke_val_manifest": "data/manifests/smoke_to_val.csv",
+    "smoke_test_manifest": "data/manifests/smoke_to_test.csv"
+  },
+  "outputs": {
+    "train": "data/manifests/train.csv",
+    "val": "data/manifests/val.csv",
+    "test": "data/manifests/test.csv",
+    "protocol_yaml": "configs/split_protocol.yaml"
+  },
+  "counts": {
+    "linked_events": 968,
+    "linked_unique_videos": 87,
+    "train_events": 802,
+    "val_events": 166,
+    "train_unique_videos": 70,
+    "val_unique_videos": 17,
+    "smoke_val_clips": 43,
+    "smoke_test_clips": 16
+  }
+}

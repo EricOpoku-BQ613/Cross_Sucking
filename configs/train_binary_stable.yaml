@@ -1,0 +1,78 @@
+# configs/train_binary_stable.yaml
+# 
+# STABLE configuration for binary ear/tail classification
+# Key insight: Use EITHER balanced sampling OR class weights, NOT both
+# 
+# This config uses:
+# - WeightedRandomSampler for balanced batches (handles class imbalance)
+# - TrivialAugment for regularization (from FERAL paper)
+# - NO class weights in loss (would cause over-correction)
+# - Label smoothing 0.1 (from FERAL paper)
+# - macro_f1 as selection metric (stable, considers both classes)
+
+seed: 42
+device: "cuda"
+
+data:
+  # UPDATED: Using intra-video split to eliminate video confounding
+  # Choose between standard (14% tail) or boosted (30% tail, oversampled)
+
+  # Option 1: Standard intra-video split (RECOMMENDED FOR INITIAL TEST)
+  train_csv: "data/manifests/train_intravideo_20260105_162028.csv"
+  val_csv: "data/manifests/val_intravideo_20260105_162028.csv"
+
+  # Option 2: Boosted intra-video split (30% tail via oversampling)
+  # train_csv: "data/manifests/train_intravideo_20260105_162114.csv"
+  # val_csv: "data/manifests/val_intravideo_20260105_162114.csv"
+
+  balanced_sampling: true      # WeightedRandomSampler for ~1:1 batch ratio
+  filter_to_id: true           # Filter to ear/tail only
+  num_workers: 4
+  batch_size: 4
+
+clip:
+  clip_len: 16
+  fps: 12
+
+labels:
+  num_classes: 2
+  class_names: ["ear", "tail"]
+  id_labels: ["ear", "tail"]
+
+model:
+  backbone: "r3d_18"
+  pretrained: true
+  head: "linear"
+  head_dropout: 0.3            # Increased dropout for regularization
+
+# IMPORTANT: No class weights when using balanced sampling!
+loss:
+  name: "focal"
+  gamma: 2.0
+  use_class_weights: false     # CRITICAL: Sampler already handles balance
+  label_smoothing: 0.1         # From FERAL paper - helps calibration
+
+optim:
+  name: "adamw"
+  lr: 0.0001
+  weight_decay: 0.01
+
+sched:
+  name: "cosine"
+  t_max: 20
+  min_lr: 0.000001
+
+train:
+  epochs: 20
+  amp: true
+  grad_clip: 1.0
+  log_every: 20
+  out_dir: "runs/sup_binary_stable"
+  metric_key: "macro_f1"       # Stable metric (considers both classes)
+  accum_steps: 1               # Removed accumulation for faster feedback
+
+# NEW: Augmentation settings (from FERAL paper)
+augmentation:
+  use_trivial_augment: true    # Apply TrivialAugment to training clips
+  use_mixup: false             # Optional MixUp (can enable later)
+  mixup_alpha: 0.2

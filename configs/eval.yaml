@@ -1,0 +1,84 @@
+# Evaluation Configuration
+# ========================
+
+defaults:
+  - base
+
+evaluation:
+  # Model checkpoint
+  checkpoint: runs/interaction/best.pth
+  
+  # Data split
+  split: test  # train, val, test
+  
+  # Metrics
+  metrics:
+    # Temporal detection metrics
+    temporal:
+      enabled: true
+      iou_thresholds: [0.3, 0.5, 0.7]
+      
+    # Classification metrics
+    classification:
+      enabled: true
+      report_per_class: true
+      
+    # Role metrics
+    role:
+      enabled: true
+      
+    # Boundary metrics
+    boundary:
+      enabled: true
+      tolerance_sec: [0.5, 1.0, 2.0]
+      
+    # Calibration
+    calibration:
+      enabled: true
+      num_bins: 10
+
+# Output
+output:
+  save_dir: runs/eval
+  
+  # What to save
+  save_predictions: true
+  save_metrics: true
+  save_confusion_matrix: true
+  save_pr_curves: true
+  save_calibration_plot: true
+  
+  # Qualitative analysis
+  qualitative:
+    enabled: true
+    num_samples: 20
+    save_visualizations: true
+    
+# Error analysis
+error_analysis:
+  enabled: true
+  
+  # Breakdowns
+  by_behavior: true
+  by_duration: true
+  by_group: true
+  
+  # Failure case extraction
+  failures:
+    false_positives: 10
+    false_negatives: 10
+    boundary_errors: 10
+
+# Uncertainty analysis (Stage 5)
+uncertainty:
+  enabled: true
+  method: mc_dropout
+  num_samples: 10
+  
+  # Abstain policy
+  abstain:
+    enabled: true
+    thresholds: [0.5, 0.6, 0.7, 0.8, 0.9]
+    
+  # Calibration
+  temperature_scaling: true

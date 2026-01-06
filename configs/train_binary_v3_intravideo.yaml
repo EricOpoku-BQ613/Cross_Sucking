@@ -1,0 +1,93 @@
+# configs/train_binary_v3_intravideo.yaml
+#
+# V3: INTRA-VIDEO SPLIT + HEAVY AUGMENTATION
+# ==========================================
+# Combines:
+# 1. Intra-video split (76 videos overlap train/val) - ELIMINATES video confound
+# 2. Heavy augmentation - prevents overfitting to video-specific features
+# 3. Increased regularization (dropout, weight decay)
+# 4. Label smoothing for better calibration
+# 5. Model selection based on TAIL F1 (critical for minority class)
+#
+# Key insight: With intra-video split, model MUST learn behavior features
+# because it sees same videos in both train and val!
+
+seed: 42
+device: "cuda"
+
+data:
+  # INTRA-VIDEO SPLIT: Events from SAME videos in both train/val
+  # This forces model to learn BEHAVIOR, not VIDEO features
+  train_csv: "data/manifests/train_intravideo_20260105_162028.csv"
+  val_csv: "data/manifests/val_intravideo_20260105_162028.csv"
+
+  balanced_sampling: true      # WeightedRandomSampler for ~1:1 batch ratio
+  filter_to_id: true           # Filter to ear/tail only
+  num_workers: 0               # Set to 0 for Windows, 4+ for Linux
+  batch_size: 4                # Keep small for gradient stability
+
+clip:
+  clip_len: 16
+  fps: 12
+
+labels:
+  num_classes: 2
+  class_names: ["ear", "tail"]
+  id_labels: ["ear", "tail"]
+
+model:
+  backbone: "r3d_18"
+  pretrained: true
+  head: "linear"
+  head_dropout: 0.5            # INCREASED from 0.3 for more regularization
+
+# IMPORTANT: No class weights when using balanced sampling!
+loss:
+  name: "focal"
+  gamma: 2.0
+  use_class_weights: false     # CRITICAL: Sampler already handles balance
+  label_smoothing: 0.15        # INCREASED from 0.1 for better calibration
+
+optim:
+  name: "adamw"
+  lr: 0.00005                  # LOWER than stable (was 0.0001) - prevent overfitting
+  weight_decay: 0.05           # HIGHER than stable (was 0.01) - more regularization
+
+sched:
+  name: "cosine"
+  t_max: 30                    # Longer training to compensate for lower LR
+  min_lr: 0.000001
+
+train:
+  epochs: 30                   # More epochs for lower LR to converge
+  amp: true
+  grad_clip: 1.0
+  log_every: 20
+  out_dir: "runs/sup_binary_v3_intravideo"
+
+  # CRITICAL: Select by tail F1, not macro_f1
+  # Tail class is what we care about for early detection
+  metric_key: "f1_tail"        # Changed from macro_f1
+
+  accum_steps: 1               # No accumulation - faster feedback
+
+# HEAVY AUGMENTATION (breaks camera-specific patterns)
+augmentation:
+  use_trivial_augment: true    # Apply TrivialAugment
+
+  # OPTIONAL: Can add mixup for even more regularization
+  use_mixup: false             # Set to true if model still overfits
+  mixup_alpha: 0.4
+
+  # Note: TrivialAugment already includes:
+  # - Aggressive color jitter (breaks lighting patterns)
+  # - Rotation, translation (breaks camera angles)
+  # - Random erasing (occlusion robustness)
+  # - AutoContrast (lighting invariance)
+
+# VALIDATION: Multi-clip TTA for stable metrics
+validation:
+  batch_size: 8
+  multi_clip: true             # Enable TTA during validation
+  clips_per_event: 5           # Sample 5 clips per event
+  aggregation: "mean"          # Average logits across clips

@@ -1,0 +1,65 @@
+# Self-Supervised Pretraining Configuration
+# =========================================
+
+defaults:
+  - base
+
+ssl:
+  method: masked_video_modeling  # or "contrastive", "moco", "byol"
+  
+  # VideoMAE settings
+  videomae:
+    model: "MCG-NJU/videomae-base"
+    mask_ratio: 0.75
+    decoder_depth: 4
+    
+  # Contrastive settings (alternative)
+  contrastive:
+    temperature: 0.07
+    queue_size: 65536
+    momentum: 0.999
+
+# Data
+data:
+  source: unlabeled  # Use unlabeled data for SSL
+  clip_length: 16    # frames
+  sampling_rate: 4   # sample every 4th frame
+  frame_size: [224, 224]
+  
+  # Augmentations
+  augmentations:
+    random_crop: true
+    horizontal_flip: true
+    color_jitter: 0.4
+    grayscale_prob: 0.2
+    gaussian_blur: true
+
+# Training
+training:
+  epochs: 100
+  batch_size: 8
+  accumulate_grad: 4  # Effective batch = 32
+  
+  optimizer:
+    name: adamw
+    lr: 1.5e-4
+    weight_decay: 0.05
+    betas: [0.9, 0.95]
+    
+  scheduler:
+    name: cosine
+    warmup_epochs: 10
+    min_lr: 1e-6
+    
+  # Mixed precision
+  mixed_precision: true
+  gradient_clip: 1.0
+  
+# Checkpointing
+checkpoint:
+  save_every: 10  # epochs
+  keep_last: 3
+  save_dir: runs/pretrain
+
+# Logging
+log_every: 100  # steps

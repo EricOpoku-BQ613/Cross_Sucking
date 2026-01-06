@@ -1,0 +1,67 @@
+# Interaction Tube Generation Configuration
+# ==========================================
+
+defaults:
+  - base
+
+tubes:
+  # Pairwise tube generation
+  generation:
+    method: proximity  # proximity, all_pairs
+    
+    # Proximity-based filtering
+    proximity:
+      max_distance: 150      # pixels - max distance between calf centers
+      min_overlap_frames: 5  # frames - minimum temporal overlap
+      
+    # Temporal settings
+    temporal:
+      min_duration: 0.5      # seconds
+      max_duration: 60       # seconds
+      window_stride: 0.25    # seconds - sliding window stride
+      
+  # Features to extract per tube
+  features:
+    appearance:
+      enabled: true
+      encoder: videomae     # videomae, internvideo, x3d
+      checkpoint: runs/pretrain/best.pth
+      
+    motion:
+      enabled: true
+      method: flow          # flow, velocity
+      
+    pose:
+      enabled: false        # Enable later if helpful
+      model: vitpose
+      keypoints: 8
+      
+    geometry:
+      enabled: true
+      # Relative position, orientation, distance over time
+
+# Input
+input:
+  tracklets_dir: data/interim/tracklets
+  videos_dir: null  # For feature extraction
+  embeddings_dir: data/processed/embeddings  # Pre-extracted if available
+
+# Output
+output:
+  save_dir: data/processed/tubes
+  format: json
+  
+  # Save cropped tube videos for debugging
+  save_crops: false
+  crops_dir: runs/tubes/crops
+
+# Labeling (for labeled data)
+labeling:
+  # Match tubes to ground truth events
+  events_file: data/manifests/labeled_events.csv
+  iou_threshold: 0.3  # Temporal IoU for matching
+  
+# Statistics
+stats:
+  compute: true
+  output: runs/tubes/stats.json

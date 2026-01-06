@@ -1,0 +1,34 @@
+# Frozen split protocol (do not edit by hand)
+# Generated: 2025-12-19T01:30:28Z
+
+version: 1
+frozen: true
+
+policy:
+  unit_of_split: video_id
+  grouping_rule: basename_lower
+  seed: 1337
+  val_fraction: 0.2
+
+manifests:
+  linked_events: data/manifests/linked_events.csv
+  train: data/manifests/train.csv
+  val: data/manifests/val.csv
+  test: data/manifests/test.csv
+  smoke_val: data/reports/smoke_to_val.csv
+  smoke_test: data/reports/smoke_to_test.csv
+
+counts:
+  linked_events: 968
+  linked_unique_videos: 87
+  train_events: 802
+  val_events: 166
+  train_unique_videos: 70
+  val_unique_videos: 17
+  smoke_val_clips: 43
+  smoke_test_clips: 16
+
+notes:
+  - Linked labeled set integrity check: 0 corrupted videos detected.
+  - Hashing errors were observed mostly in unlabeled/SSL pool (moov atom not found).
+  - Smoke test OOD set is held out for final evaluation (no training / no tuning).

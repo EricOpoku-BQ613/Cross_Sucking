@@ -1,0 +1,21 @@
+{
+  "seed": 1337,
+  "action": "boost_val_tail_by_moving_train_videos",
+  "requested_add_tail_events": 21,
+  "actual_added_tail_events": 29,
+  "val_tail_before": 1,
+  "val_tail_after": 30,
+  "moved_video_keys": [
+    "e:/downey cross-sucking videos 2024/group 1 day 1/cam 7/n884a6_ch7_main_20240706150001_20240706153001.mp4",
+    "e:/downey cross-sucking videos 2024/group 1 day 4/cam 7/n884a6_ch7_main_20240709120000_20240709123000.mp4"
+  ],
+  "inputs": {
+    "train": "data\\manifests\\train_new_20251219_012305.csv",
+    "val": "data\\manifests\\val_new_20251219_012305.csv",
+    "test": "data\\manifests\\test.csv"
+  },
+  "outputs": {
+    "train": "data\\manifests\\train_boosted_20251230_191708.csv",
+    "val": "data\\manifests\\val_boosted_20251230_191708.csv"
+  }
+}

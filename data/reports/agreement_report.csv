@@ -1,0 +1,2 @@
+rows_with_known_our_video,"tp(our=1,match=1)","tn(our=0,match=0)","fp(our=0,match=1)","fn(our=1,match=0)",accuracy
+59,0,16,0,43,0.2711864406779661

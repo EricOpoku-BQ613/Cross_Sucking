@@ -1,0 +1,63 @@
+# Multi-Object Tracking Configuration
+# ====================================
+
+defaults:
+  - base
+
+tracker:
+  method: bytetrack  # bytetrack, deepsort, ocsort
+  
+  # ByteTrack settings
+  bytetrack:
+    track_thresh: 0.5      # Detection threshold for new tracks
+    track_buffer: 30       # Frames to keep lost tracks
+    match_thresh: 0.8      # IoU threshold for matching
+    min_box_area: 100      # Minimum detection area
+    
+  # DeepSORT settings (alternative)
+  deepsort:
+    max_dist: 0.2
+    min_confidence: 0.5
+    max_iou_distance: 0.7
+    max_age: 70
+    n_init: 3
+    nn_budget: 100
+    
+  # OC-SORT settings (alternative)
+  ocsort:
+    det_thresh: 0.5
+    max_age: 30
+    min_hits: 3
+    iou_threshold: 0.3
+    delta_t: 3
+    asso_func: iou
+    inertia: 0.2
+
+# Input
+input:
+  detections_dir: data/interim/detections
+  videos_dir: null  # Set if re-extracting frames
+
+# Output
+output:
+  save_dir: data/interim/tracklets
+  format: json
+  
+  # What to save per tracklet
+  save_boxes: true
+  save_features: true  # ReID features if available
+  save_keypoints: false  # If pose is run
+
+# Tracklet filtering
+filtering:
+  min_track_length: 5     # Minimum frames
+  min_confidence: 0.4     # Average confidence
+  max_gap: 10            # Maximum interpolation gap
+
+# Visualization
+viz:
+  enabled: false
+  output_dir: runs/tracking/viz
+  show_ids: true
+  show_trails: true
+  trail_length: 30

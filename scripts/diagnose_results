@@ -1,0 +1,341 @@
+#!/usr/bin/env python3
+"""
+Diagnostic Analysis of Cross-Sucking Training Results
+======================================================
+
+Analyzes predictions to identify:
+1. Group/camera confounds
+2. Threshold sensitivity
+3. Confidence distribution
+4. Per-group performance
+"""
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.metrics import (
+    f1_score, recall_score, precision_score, 
+    confusion_matrix, roc_auc_score, average_precision_score
+)
+import argparse
+from pathlib import Path
+
+
+def load_predictions(pred_path: str, manifest_path: str = None) -> pd.DataFrame:
+    """Load predictions and optionally merge with manifest for group info."""
+    df = pd.read_csv(pred_path)
+    
+    # Extract event index from clip_id
+    df['event_idx'] = df['clip_id'].str.extract(r'event_(\d+)').astype(int)
+    
+    # Binary labels
+    df['true_binary'] = (df['true_label'] == 'tail').astype(int)
+    df['pred_binary'] = (df['pred_label'] == 'tail').astype(int)
+    
+    # If manifest available, merge for group info
+    if manifest_path and Path(manifest_path).exists():
+        manifest = pd.read_csv(manifest_path)
+        # Assuming manifest has event_idx or similar
+        # Adjust column names as needed
+        if 'event_idx' in manifest.columns:
+            df = df.merge(manifest[['event_idx', 'group', 'camera_id']], 
+                         on='event_idx', how='left')
+    
+    return df
+
+
+def analyze_confidence_distribution(df: pd.DataFrame, output_dir: str):
+    """Analyze how confidence distributes for correct vs incorrect predictions."""
+    
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    
+    # 1. Probability distribution by true label
+    ax = axes[0, 0]
+    ear_probs = df[df['true_label'] == 'ear']['prob_tail']
+    tail_probs = df[df['true_label'] == 'tail']['prob_tail']
+    
+    ax.hist(ear_probs, bins=20, alpha=0.6, label=f'True Ear (n={len(ear_probs)})', color='blue')
+    ax.hist(tail_probs, bins=20, alpha=0.6, label=f'True Tail (n={len(tail_probs)})', color='orange')
+    ax.axvline(x=0.5, color='red', linestyle='--', label='Decision boundary')
+    ax.set_xlabel('P(tail)')
+    ax.set_ylabel('Count')
+    ax.set_title('Probability Distribution by True Label')
+    ax.legend()
+    
+    # 2. Confidence for correct vs incorrect
+    ax = axes[0, 1]
+    df['correct'] = df['true_label'] == df['pred_label']
+    df['confidence'] = df[['prob_ear', 'prob_tail']].max(axis=1)
+    
+    correct_conf = df[df['correct']]['confidence']
+    incorrect_conf = df[~df['correct']]['confidence']
+    
+    ax.hist(correct_conf, bins=20, alpha=0.6, label=f'Correct (n={len(correct_conf)})', color='green')
+    ax.hist(incorrect_conf, bins=20, alpha=0.6, label=f'Incorrect (n={len(incorrect_conf)})', color='red')
+    ax.set_xlabel('Max Probability (Confidence)')
+    ax.set_ylabel('Count')
+    ax.set_title('Confidence Distribution: Correct vs Incorrect')
+    ax.legend()
+    
+    # 3. Tail class specifically
+    ax = axes[1, 0]
+    tail_correct = df[(df['true_label'] == 'tail') & (df['pred_label'] == 'tail')]['prob_tail']
+    tail_incorrect = df[(df['true_label'] == 'tail') & (df['pred_label'] == 'ear')]['prob_tail']
+    
+    if len(tail_correct) > 0:
+        ax.hist(tail_correct, bins=15, alpha=0.6, label=f'Tail→Tail (n={len(tail_correct)})', color='green')
+    if len(tail_incorrect) > 0:
+        ax.hist(tail_incorrect, bins=15, alpha=0.6, label=f'Tail→Ear (n={len(tail_incorrect)})', color='red')
+    ax.axvline(x=0.5, color='black', linestyle='--')
+    ax.set_xlabel('P(tail)')
+    ax.set_ylabel('Count')
+    ax.set_title('Tail Events: Correct vs Misclassified')
+    ax.legend()
+    
+    # 4. Cumulative distribution
+    ax = axes[1, 1]
+    sorted_tail_probs = np.sort(tail_probs)
+    cumulative = np.arange(1, len(sorted_tail_probs) + 1) / len(sorted_tail_probs)
+    ax.plot(sorted_tail_probs, cumulative, 'b-', linewidth=2)
+    ax.axvline(x=0.5, color='red', linestyle='--', label='Threshold=0.5')
+    ax.axvline(x=0.4, color='orange', linestyle='--', label='Threshold=0.4')
+    ax.axvline(x=0.3, color='green', linestyle='--', label='Threshold=0.3')
+    ax.set_xlabel('P(tail) threshold')
+    ax.set_ylabel('Fraction of Tail Events Captured')
+    ax.set_title('Tail Recall vs Threshold')
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(f'{output_dir}/confidence_analysis.png', dpi=150)
+    plt.close()
+    
+    print(f"[Saved] {output_dir}/confidence_analysis.png")
+
+
+def analyze_threshold_sweep(df: pd.DataFrame, output_dir: str):
+    """Sweep decision threshold and show metrics."""
+    
+    thresholds = np.arange(0.1, 0.9, 0.05)
+    results = []
+    
+    for thresh in thresholds:
+        pred_at_thresh = (df['prob_tail'] >= thresh).astype(int)
+        
+        # Handle edge cases
+        if pred_at_thresh.sum() == 0 or pred_at_thresh.sum() == len(pred_at_thresh):
+            continue
+            
+        tail_recall = recall_score(df['true_binary'], pred_at_thresh, pos_label=1, zero_division=0)
+        tail_precision = precision_score(df['true_binary'], pred_at_thresh, pos_label=1, zero_division=0)
+        tail_f1 = f1_score(df['true_binary'], pred_at_thresh, pos_label=1, zero_division=0)
+        ear_recall = recall_score(df['true_binary'], pred_at_thresh, pos_label=0, zero_division=0)
+        macro_f1 = f1_score(df['true_binary'], pred_at_thresh, average='macro', zero_division=0)
+        
+        results.append({
+            'threshold': thresh,
+            'tail_recall': tail_recall,
+            'tail_precision': tail_precision,
+            'tail_f1': tail_f1,
+            'ear_recall': ear_recall,
+            'macro_f1': macro_f1,
+        })
+    
+    results_df = pd.DataFrame(results)
+    
+    # Plot
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    
+    # Metrics vs threshold
+    ax = axes[0]
+    ax.plot(results_df['threshold'], results_df['tail_recall'], 'g-o', label='Tail Recall', linewidth=2)
+    ax.plot(results_df['threshold'], results_df['tail_precision'], 'b-s', label='Tail Precision', linewidth=2)
+    ax.plot(results_df['threshold'], results_df['tail_f1'], 'r-^', label='Tail F1', linewidth=2)
+    ax.plot(results_df['threshold'], results_df['macro_f1'], 'k--', label='Macro F1', linewidth=2)
+    ax.axvline(x=0.5, color='gray', linestyle=':', alpha=0.7)
+    ax.set_xlabel('Decision Threshold')
+    ax.set_ylabel('Score')
+    ax.set_title('Metrics vs Decision Threshold')
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    
+    # Find optimal thresholds
+    best_tail_f1_idx = results_df['tail_f1'].idxmax()
+    best_macro_f1_idx = results_df['macro_f1'].idxmax()
+    
+    ax.axvline(x=results_df.loc[best_tail_f1_idx, 'threshold'], 
+               color='red', linestyle='--', alpha=0.5, label=f"Best Tail F1: {results_df.loc[best_tail_f1_idx, 'threshold']:.2f}")
+    
+    # Recall vs Precision tradeoff
+    ax = axes[1]
+    ax.plot(results_df['tail_recall'], results_df['tail_precision'], 'b-o', linewidth=2)
+    for i, row in results_df.iterrows():
+        if row['threshold'] in [0.3, 0.4, 0.5]:
+            ax.annotate(f"t={row['threshold']:.1f}", 
+                       (row['tail_recall'], row['tail_precision']),
+                       textcoords="offset points", xytext=(5,5))
+    ax.set_xlabel('Tail Recall')
+    ax.set_ylabel('Tail Precision')
+    ax.set_title('Precision-Recall Tradeoff (varying threshold)')
+    ax.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(f'{output_dir}/threshold_sweep.png', dpi=150)
+    plt.close()
+    
+    # Print best thresholds
+    print("\n" + "="*60)
+    print("THRESHOLD ANALYSIS")
+    print("="*60)
+    print(f"\nBest Tail F1 at threshold = {results_df.loc[best_tail_f1_idx, 'threshold']:.2f}")
+    print(f"  Tail F1: {results_df.loc[best_tail_f1_idx, 'tail_f1']:.3f}")
+    print(f"  Tail Recall: {results_df.loc[best_tail_f1_idx, 'tail_recall']:.3f}")
+    print(f"  Tail Precision: {results_df.loc[best_tail_f1_idx, 'tail_precision']:.3f}")
+    
+    print(f"\nBest Macro F1 at threshold = {results_df.loc[best_macro_f1_idx, 'threshold']:.2f}")
+    print(f"  Macro F1: {results_df.loc[best_macro_f1_idx, 'macro_f1']:.3f}")
+    
+    # Show specific thresholds
+    print("\n" + "-"*60)
+    print("Metrics at specific thresholds:")
+    for thresh in [0.3, 0.35, 0.4, 0.45, 0.5]:
+        row = results_df[results_df['threshold'].round(2) == thresh]
+        if len(row) > 0:
+            row = row.iloc[0]
+            print(f"  t={thresh}: Tail_Recall={row['tail_recall']:.2f}, Tail_F1={row['tail_f1']:.2f}, Macro_F1={row['macro_f1']:.2f}")
+    
+    return results_df
+
+
+def analyze_errors(df: pd.DataFrame, output_dir: str):
+    """Analyze error patterns."""
+    
+    print("\n" + "="*60)
+    print("ERROR ANALYSIS")
+    print("="*60)
+    
+    # False negatives (tail predicted as ear)
+    fn = df[(df['true_label'] == 'tail') & (df['pred_label'] == 'ear')]
+    print(f"\nFalse Negatives (Tail→Ear): {len(fn)}/{len(df[df['true_label']=='tail'])} ({100*len(fn)/len(df[df['true_label']=='tail']):.1f}%)")
+    
+    if len(fn) > 0:
+        print(f"  Mean P(tail): {fn['prob_tail'].mean():.3f}")
+        print(f"  Min P(tail): {fn['prob_tail'].min():.3f}")
+        print(f"  Max P(tail): {fn['prob_tail'].max():.3f}")
+        
+        # High confidence false negatives (worst errors)
+        high_conf_fn = fn[fn['prob_ear'] > 0.7]
+        print(f"\n  HIGH CONFIDENCE False Negatives (P(ear) > 0.7): {len(high_conf_fn)}")
+        if len(high_conf_fn) > 0:
+            print("  These are the WORST errors - model is confidently wrong:")
+            for _, row in high_conf_fn.head(10).iterrows():
+                print(f"    {row['clip_id']}: P(ear)={row['prob_ear']:.3f}, P(tail)={row['prob_tail']:.3f}")
+    
+    # False positives (ear predicted as tail)  
+    fp = df[(df['true_label'] == 'ear') & (df['pred_label'] == 'tail')]
+    print(f"\nFalse Positives (Ear→Tail): {len(fp)}/{len(df[df['true_label']=='ear'])} ({100*len(fp)/len(df[df['true_label']=='ear']):.1f}%)")
+    
+    if len(fp) > 0:
+        print(f"  Mean P(tail): {fp['prob_tail'].mean():.3f}")
+        
+    # Predictions near boundary
+    boundary = df[(df['prob_tail'] > 0.4) & (df['prob_tail'] < 0.6)]
+    print(f"\nPredictions near boundary (0.4 < P(tail) < 0.6): {len(boundary)}/{len(df)} ({100*len(boundary)/len(df):.1f}%)")
+    
+    # Check for duplicate probabilities (sign of video/group issues)
+    prob_counts = df['prob_tail'].round(4).value_counts()
+    duplicates = prob_counts[prob_counts > 3]
+    if len(duplicates) > 0:
+        print(f"\n⚠️  WARNING: Found {len(duplicates)} probability values appearing >3 times")
+        print("  This suggests overfitting to specific videos or data duplication:")
+        for prob, count in duplicates.head(5).items():
+            events = df[df['prob_tail'].round(4) == prob]['clip_id'].tolist()[:5]
+            print(f"    P(tail)={prob:.4f}: appears {count}x - {events}")
+
+
+def analyze_per_event_range(df: pd.DataFrame, output_dir: str):
+    """Analyze if errors cluster in certain event index ranges (proxy for groups/cameras)."""
+    
+    print("\n" + "="*60)
+    print("EVENT RANGE ANALYSIS (Proxy for Group/Camera Effects)")
+    print("="*60)
+    
+    # Split into ranges
+    df['event_range'] = pd.cut(df['event_idx'], bins=5, labels=['0-28', '29-56', '57-84', '85-112', '113-140'])
+    
+    range_stats = []
+    for range_label in df['event_range'].unique():
+        subset = df[df['event_range'] == range_label]
+        
+        n_total = len(subset)
+        n_tail = (subset['true_label'] == 'tail').sum()
+        n_ear = (subset['true_label'] == 'ear').sum()
+        
+        if n_tail > 0:
+            tail_recall = recall_score(
+                subset['true_binary'], subset['pred_binary'], 
+                pos_label=1, zero_division=0
+            )
+        else:
+            tail_recall = np.nan
+            
+        accuracy = (subset['true_label'] == subset['pred_label']).mean()
+        mean_prob_tail = subset['prob_tail'].mean()
+        
+        range_stats.append({
+            'range': range_label,
+            'n_total': n_total,
+            'n_ear': n_ear,
+            'n_tail': n_tail,
+            'tail_recall': tail_recall,
+            'accuracy': accuracy,
+            'mean_prob_tail': mean_prob_tail,
+        })
+    
+    stats_df = pd.DataFrame(range_stats).sort_values('range')
+    print("\n" + stats_df.to_string(index=False))
+    
+    # Check for group/camera effect
+    prob_by_range = df.groupby('event_range')['prob_tail'].mean()
+    if prob_by_range.std() > 0.1:
+        print(f"\n⚠️  WARNING: Mean P(tail) varies significantly across event ranges")
+        print(f"   Std of mean P(tail) across ranges: {prob_by_range.std():.3f}")
+        print(f"   This suggests camera/group confound!")
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Analyze training results')
+    parser.add_argument('--predictions', type=str, required=True,
+                       help='Path to predictions CSV')
+    parser.add_argument('--manifest', type=str, default=None,
+                       help='Path to manifest CSV (optional, for group info)')
+    parser.add_argument('--output', type=str, default='analysis/',
+                       help='Output directory for plots')
+    
+    args = parser.parse_args()
+    
+    # Create output directory
+    Path(args.output).mkdir(parents=True, exist_ok=True)
+    
+    # Load data
+    print("Loading predictions...")
+    df = load_predictions(args.predictions, args.manifest)
+    
+    print(f"Total events: {len(df)}")
+    print(f"  Ear: {(df['true_label']=='ear').sum()}")
+    print(f"  Tail: {(df['true_label']=='tail').sum()}")
+    
+    # Run analyses
+    analyze_confidence_distribution(df, args.output)
+    threshold_results = analyze_threshold_sweep(df, args.output)
+    analyze_errors(df, args.output)
+    analyze_per_event_range(df, args.output)
+    
+    # Save threshold results
+    threshold_results.to_csv(f'{args.output}/threshold_sweep.csv', index=False)
+    
+    print(f"\n[Done] Analysis saved to {args.output}/")
+
+
+if __name__ == '__main__':
+    main()

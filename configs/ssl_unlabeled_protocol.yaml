@@ -1,0 +1,23 @@
+version: 1
+frozen: true
+generated_utc: '2025-12-19T02:05:39Z'
+seed: 1337
+source: data/manifests/video_hash_index.csv
+exclusions:
+  train: data/manifests/train.csv
+  val: data/manifests/val.csv
+  test: data/manifests/test.csv
+  smoke_val: data/manifests/smoke_to_val.csv
+  smoke_test: data/manifests/smoke_to_test.csv
+  rule: exclude if basename_lower in any labeled/smoke manifest
+counts:
+  valid_candidates_before_exclusion: 1760
+  excluded_by_labeled_or_smoke: 87
+  unlabeled_ssl_unique_videos: 1672
+notes:
+- Unlabeled SSL pool excludes any video basename found in labeled train/val/test and
+  smoke manifests.
+- Corrupted/unreadable files are removed via video_hash_index validity + existence
+  checks.
+outputs:
+  unlabeled_ssl_csv: data/manifests/unlabeled_ssl.csv

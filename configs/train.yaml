@@ -1,0 +1,50 @@
+# configs/train.yaml
+
+seed: 42
+device: "cuda"   # auto-fallback to cpu if unavailable
+
+data:
+  train_csv: "data/manifests/train.csv"
+  val_csv: "data/manifests/val.csv"
+  num_workers: 4
+  batch_size: 4
+
+clip:
+  clip_len: 16
+  fps: 12
+
+labels:
+  num_classes: 4
+  class_names: ["ear", "tail", "teat", "other"]
+
+model:
+  backbone: "r3d_18"
+  pretrained: false
+  backbone_dropout: 0.0
+  head: "linear"     # "linear" or "mlp"
+  head_dropout: 0.2
+  head_hidden_dim: 512
+
+loss:
+  name: "focal"       # "ce" or "focal"
+  gamma: 2.0
+  label_smoothing: 0.0
+  use_class_weights: true
+  weight_method: "inv_sqrt"  # "inv", "inv_sqrt", "effective"
+
+optim:
+  name: "adamw"
+  lr: 0.0001
+  weight_decay: 0.01
+
+sched:
+  name: "cosine"      # "none", "cosine", "plateau"
+  t_max: 20
+  min_lr: 0.000001
+
+train:
+  epochs: 20
+  amp: true
+  grad_clip: 1.0
+  log_every: 20
+  out_dir: "runs/sup_baseline_r3d18"

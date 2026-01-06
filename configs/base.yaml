@@ -1,0 +1,40 @@
+# Base Configuration - Shared Settings
+# =====================================
+# All other configs inherit from this
+
+project:
+  name: cross_sucking
+  version: "0.1.0"
+  seed: 42
+
+# Hardware
+device: cuda
+num_workers: 4
+pin_memory: true
+
+# Logging
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Wandb (optional)
+wandb:
+  enabled: false
+  project: cross-sucking-detection
+  entity: null
+
+# Video defaults
+video:
+  fps: 15
+  frame_size: [224, 224]
+
+# Behavior classes
+classes:
+  behaviors: ["none", "ear", "tail", "teat", "other"]
+  roles: ["initiator", "receiver"]
+  
+# Splits (by group to avoid leakage)
+splits:
+  train_groups: [1]
+  val_groups: [2]
+  test_groups: [3]

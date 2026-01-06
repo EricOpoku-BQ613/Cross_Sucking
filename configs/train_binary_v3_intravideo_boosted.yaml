@@ -1,0 +1,72 @@
+# configs/train_binary_v3_intravideo_boosted.yaml
+#
+# V3: INTRA-VIDEO SPLIT + BOOSTED TAIL CLASS
+# ===========================================
+# Same as v3_intravideo but uses OVERSAMPLED tail class (30% instead of 14%)
+#
+# Use this if standard split shows low tail recall due to class imbalance.
+# Trade-off: More tail examples but risk of overfitting to those tail events.
+
+seed: 42
+device: "cuda"
+
+data:
+  # BOOSTED INTRA-VIDEO SPLIT: 30% tail (170 oversampled train, 40 val)
+  train_csv: "data/manifests/train_intravideo_20260105_162114.csv"
+  val_csv: "data/manifests/val_intravideo_20260105_162114.csv"
+
+  balanced_sampling: true      # Still use balanced sampling
+  filter_to_id: true
+  num_workers: 0               # Set to 0 for Windows, 4+ for Linux
+  batch_size: 4
+
+clip:
+  clip_len: 16
+  fps: 12
+
+labels:
+  num_classes: 2
+  class_names: ["ear", "tail"]
+  id_labels: ["ear", "tail"]
+
+model:
+  backbone: "r3d_18"
+  pretrained: true
+  head: "linear"
+  head_dropout: 0.5
+
+loss:
+  name: "focal"
+  gamma: 2.0
+  use_class_weights: false
+  label_smoothing: 0.15
+
+optim:
+  name: "adamw"
+  lr: 0.00005
+  weight_decay: 0.05
+
+sched:
+  name: "cosine"
+  t_max: 30
+  min_lr: 0.000001
+
+train:
+  epochs: 30
+  amp: true
+  grad_clip: 1.0
+  log_every: 20
+  out_dir: "runs/sup_binary_v3_intravideo_boosted"
+  metric_key: "f1_tail"
+  accum_steps: 1
+
+augmentation:
+  use_trivial_augment: true
+  use_mixup: false
+  mixup_alpha: 0.4
+
+validation:
+  batch_size: 8
+  multi_clip: true
+  clips_per_event: 5
+  aggregation: "mean"

@@ -1,0 +1,38 @@
+{
+  "timestamp": "2025-12-18 19:01:06",
+  "parse_stats": {
+    "original_rows": 61,
+    "valid_clips": 59,
+    "our_video_stats": {
+      "Y": 43,
+      "N": 16,
+      "invalid": 0,
+      "missing": 0
+    },
+    "label_cols_found": [
+      "none",
+      "ear",
+      "tail",
+      "teat",
+      "other"
+    ]
+  },
+  "corpus_stats": {
+    "total_videos": 1221,
+    "excluded_smoke": 0,
+    "sources": {
+      "group1_day1": 402,
+      "group3_day4": 219,
+      "group1_day4": 394,
+      "group2_day4": 206
+    }
+  },
+  "split_stats": {
+    "val_count": 43,
+    "val_teat": 7,
+    "test_count": 16,
+    "test_teat": 3
+  },
+  "policy": "conservative (OurVideo=Y OR filename_match OR hash_match -> VAL)",
+  "recommendation": "Use 43 clips for VAL (with 7 teat), 16 clips for TEST (with 3 teat). Report TEST results with 95% CI due to small sample size."
+}

@@ -1,0 +1,73 @@
+# configs/train_binary_baseline_old_split.yaml
+#
+# BASELINE: OLD SPLIT (for comparison)
+# =====================================
+# Uses the OLD train/val split with ZERO video overlap.
+# This is expected to show video confounding and poor test generalization.
+#
+# Purpose: Demonstrates the problem we're trying to solve.
+# Expected: Good validation metrics but poor test metrics (video confound).
+
+seed: 42
+device: "cuda"
+
+data:
+  # OLD SPLIT: 0 videos overlap (CONFOUNDED)
+  train_csv: "data/manifests/train.csv"
+  val_csv: "data/manifests/val.csv"
+
+  balanced_sampling: true
+  filter_to_id: true
+  num_workers: 0               # Set to 0 for Windows, 4+ for Linux
+  batch_size: 4
+
+clip:
+  clip_len: 16
+  fps: 12
+
+labels:
+  num_classes: 2
+  class_names: ["ear", "tail"]
+  id_labels: ["ear", "tail"]
+
+model:
+  backbone: "r3d_18"
+  pretrained: true
+  head: "linear"
+  head_dropout: 0.3            # Standard dropout
+
+loss:
+  name: "focal"
+  gamma: 2.0
+  use_class_weights: false
+  label_smoothing: 0.1         # Standard smoothing
+
+optim:
+  name: "adamw"
+  lr: 0.0001                   # Standard LR
+  weight_decay: 0.01           # Standard weight decay
+
+sched:
+  name: "cosine"
+  t_max: 20
+  min_lr: 0.000001
+
+train:
+  epochs: 20
+  amp: true
+  grad_clip: 1.0
+  log_every: 20
+  out_dir: "runs/sup_binary_baseline_old_split"
+  metric_key: "macro_f1"       # Use macro_f1 (standard)
+  accum_steps: 1
+
+augmentation:
+  use_trivial_augment: true
+  use_mixup: false
+  mixup_alpha: 0.2
+
+validation:
+  batch_size: 8
+  multi_clip: true
+  clips_per_event: 5
+  aggregation: "mean"

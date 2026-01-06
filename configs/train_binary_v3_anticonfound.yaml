@@ -1,0 +1,181 @@
+# train_binary_v3_anticonfound.yaml
+# ===================================
+# Addresses the GROUP/CAMERA CONFOUND issue where model learns
+# camera-specific features instead of behavior features.
+#
+# Key changes:
+# 1. Heavy augmentation to break camera-specific patterns
+# 2. Increased regularization (dropout, weight decay)
+# 3. Label smoothing for better calibration
+# 4. Model selection based on TAIL metrics
+# 5. Longer warmup to prevent early overfitting
+
+experiment:
+  name: "binary_v3_anticonfound"
+  seed: 42
+
+# =============================================================================
+# DATA CONFIGURATION
+# =============================================================================
+data:
+  # UPDATED: Using intra-video split (76 videos overlap train/val)
+  # This forces model to learn BEHAVIOR features, not VIDEO features
+  train_manifest: "data/manifests/train_intravideo_20260105_162028.csv"
+  val_manifest: "data/manifests/val_intravideo_20260105_162028.csv"
+
+  # Alternative: Boosted split with 30% tail (oversampled)
+  # train_manifest: "data/manifests/train_intravideo_20260105_162114.csv"
+  # val_manifest: "data/manifests/val_intravideo_20260105_162114.csv"
+  
+  # Clip settings
+  clip_len: 16
+  frame_rate: 12
+  
+  # CRITICAL: Use balanced sampling
+  balanced_sampling: true
+  
+  # Dataloader
+  batch_size: 4          # Keep small for stability
+  num_workers: 4
+  pin_memory: true
+
+# =============================================================================
+# HEAVY AUGMENTATION (Break camera-specific patterns)
+# =============================================================================
+augmentation:
+  # Use temporally consistent transforms
+  use_temporal_consistent: true
+  
+  # AGGRESSIVE color augmentation (break lighting patterns)
+  brightness: 0.5          # Increased from 0.45
+  contrast: 0.5            # Increased from 0.45
+  saturation: 0.3          # Increased from 0.15
+  hue: 0.05                # Increased from 0.02
+  
+  # Geometric augmentation
+  crop_scale_min: 0.6      # More aggressive cropping (was 0.75)
+  crop_scale_max: 1.0
+  max_rotation: 10.0       # Increased from 3.0
+  max_translate: 0.1       # Increased from 0.02
+  
+  # Additional augmentations
+  p_horizontal_flip: 0.5
+  p_grayscale: 0.2         # Increased from 0.05 (break color patterns)
+  p_gaussian_blur: 0.3
+  blur_sigma_min: 0.1
+  blur_sigma_max: 2.0      # Increased from 1.2
+  
+  # Random erasing (simulate occlusion)
+  p_random_erasing: 0.3    # Increased from 0.15
+  erasing_scale_min: 0.02
+  erasing_scale_max: 0.15  # Increased from 0.08
+  
+  # Auto contrast (critical for lighting invariance)
+  p_autocontrast: 0.4      # Increased from 0.2
+  
+  # NEW: Color channel shuffling (break camera color bias)
+  p_channel_shuffle: 0.1
+  
+  # NEW: Gaussian noise
+  p_gaussian_noise: 0.2
+  noise_std: 0.05
+
+# =============================================================================
+# MODEL CONFIGURATION (Increased regularization)
+# =============================================================================
+model:
+  backbone: "r3d_18"
+  pretrained: true
+  num_classes: 2
+  
+  # CRITICAL: Freeze more layers (prevent camera feature learning)
+  freeze_stages: 3         # Freeze stem + layer1 + layer2 + layer3
+                           # Only finetune layer4 and fc
+  
+  # Increased dropout
+  dropout: 0.5             # Increased from 0.3
+  
+  # Attention pooling (instead of mean pooling)
+  use_attention_pool: false  # Keep simple for now
+
+# =============================================================================
+# LOSS CONFIGURATION
+# =============================================================================
+loss:
+  name: "focal"
+  gamma: 2.0
+  
+  # NO class weights (sampler handles balance)
+  use_class_weights: false
+  
+  # CRITICAL: Label smoothing (improves calibration)
+  label_smoothing: 0.15    # Increased from 0.1
+  
+  # NEW: Mixup augmentation (interpolates between samples)
+  use_mixup: true
+  mixup_alpha: 0.4
+
+# =============================================================================
+# OPTIMIZER (Conservative, prevent overfitting)
+# =============================================================================
+optim:
+  name: "adamw"
+  lr: 0.00005              # LOWER base LR (was 0.0001)
+  weight_decay: 0.05       # INCREASED (was 0.01)
+  betas: [0.9, 0.999]
+
+# =============================================================================
+# SCHEDULER (Longer warmup)
+# =============================================================================
+scheduler:
+  name: "cosine_warmup"
+  warmup_epochs: 5         # INCREASED (was 1-2)
+  warmup_start_lr: 0.000001
+  min_lr: 0.000001
+  t_max: 30                # Longer training
+
+# =============================================================================
+# TRAINING CONFIGURATION
+# =============================================================================
+train:
+  epochs: 30               # More epochs with lower LR
+  
+  # CRITICAL: Select best model by TAIL metrics, not macro_f1
+  metric_key: "val_tail_f1"  # Changed from macro_f1
+  metric_mode: "max"
+  
+  # Early stopping based on tail performance
+  early_stopping:
+    patience: 10
+    metric: "val_tail_f1"
+    mode: "max"
+  
+  # Gradient clipping
+  grad_clip: 1.0
+  
+  # Logging
+  log_interval: 10
+  eval_interval: 1
+  
+  # Save checkpoints
+  save_top_k: 3
+  save_every: 5
+
+# =============================================================================
+# VALIDATION
+# =============================================================================
+validation:
+  batch_size: 8
+  
+  # Multi-clip evaluation (more stable)
+  multi_clip: true
+  clips_per_event: 5
+  aggregation: "mean"
+
+# =============================================================================
+# OUTPUT
+# =============================================================================
+output:
+  dir: "runs/binary_v3_anticonfound"
+  save_predictions: true
+  save_confusion_matrix: true

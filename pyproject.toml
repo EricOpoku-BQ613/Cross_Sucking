@@ -1,0 +1,116 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cross_sucking"
+version = "0.1.0"
+description = "Role-Aware Interaction Tubes for Cross-Sucking Detection in Dairy Calves"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+keywords = ["computer-vision", "animal-behavior", "video-understanding", "livestock-welfare"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    # Core
+    "numpy>=1.21.0",
+    "pandas>=1.3.0",
+    "scipy>=1.7.0",
+    "scikit-learn>=1.0.0",
+    
+    # Deep Learning
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    
+    # Video & Image
+    "opencv-python>=4.5.0",
+    "Pillow>=9.0.0",
+    "imageio>=2.9.0",
+    "decord>=0.6.0",
+    
+    # Detection & Tracking
+    "ultralytics>=8.0.0",
+    "supervision>=0.1.0",
+    
+    # Transformers
+    "transformers>=4.25.0",
+    "timm>=0.6.0",
+    "einops>=0.6.0",
+    
+    # Config & CLI
+    "pyyaml>=6.0",
+    "omegaconf>=2.2.0",
+    "typer>=0.9.0",
+    "rich>=12.0.0",
+    
+    # Data
+    "openpyxl>=3.0.0",
+    "tqdm>=4.64.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=3.0.0",
+    "black>=22.0.0",
+    "isort>=5.10.0",
+    "ruff>=0.1.0",
+    "mypy>=0.990",
+    "pre-commit>=2.20.0",
+]
+notebooks = [
+    "jupyter>=1.0.0",
+    "jupyterlab>=3.4.0",
+    "matplotlib>=3.5.0",
+    "seaborn>=0.12.0",
+    "plotly>=5.10.0",
+]
+tracking = [
+    "wandb>=0.13.0",
+    "tensorboard>=2.10.0",
+]
+all = ["cross_sucking[dev,notebooks,tracking]"]
+
+[project.scripts]
+cs-manifest = "src.cli.make_manifests:app"
+cs-clean = "src.cli.clean_annotations:app"
+cs-extract = "src.cli.extract_clips:app"
+cs-detect = "src.cli.run_detection:app"
+cs-track = "src.cli.run_tracking:app"
+cs-tubes = "src.cli.build_tubes:app"
+cs-train = "src.cli.train_interaction:app"
+cs-eval = "src.cli.evaluate:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "W", "I", "N"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+addopts = "-v --cov=src"
