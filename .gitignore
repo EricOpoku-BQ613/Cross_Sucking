@@ -116,3 +116,13 @@ data/**/dataset_cache/
 # Decord / video extraction caches (sometimes appear)
 .cache/
 
+
+analysis/
+runs/
+venv/
+.venv/
+_archive_runs/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
