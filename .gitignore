@@ -126,3 +126,9 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 
+data/annotation_ready/
+runs/
+*.mp4
+__pycache__/
+*.pyc
+.venv/
