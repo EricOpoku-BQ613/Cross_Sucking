@@ -179,6 +179,7 @@ class AugmentedDataset(torch.utils.data.Dataset):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", type=str, default="configs/train.yaml")
+    ap.add_argument("--resume", type=str, default=None, help="Path to a .ckpt to resume from (e.g., runs/.../last.ckpt)")
     args = ap.parse_args()
 
     cfg = load_cfg(args.config)
@@ -190,10 +191,13 @@ def main():
     print(f"[Device] {device}")
 
     # labels from config (IMPORTANT)
+
     class_names = cfg["labels"]["class_names"]
     num_classes = int(cfg["labels"]["num_classes"])
     if len(class_names) != num_classes:
-        raise ValueError(f"labels.num_classes={num_classes} but class_names has {len(class_names)} items")
+       raise ValueError(
+           f"labels.num_classes={num_classes} but class_names has {len(class_names)} items")
+
 
     label_map = build_label_map(class_names)
     print(f"[Label map] {label_map}")
@@ -374,7 +378,7 @@ def main():
         cfg=tcfg,
     )
 
-    trainer.fit(dl_train, dl_val)
+    trainer.fit(dl_train, dl_val, resume_path=args.resume)
     print(f"\nDone. Artifacts in: {out_dir.resolve()}")
 
 

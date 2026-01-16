@@ -27,7 +27,7 @@ data:
 
   balanced_sampling: true      # WeightedRandomSampler for ~1:1 batch ratio
   filter_to_id: true           # Filter to ear/tail only
-  num_workers: 4
+  num_workers: 8
   batch_size: 4
 
 clip:

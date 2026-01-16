@@ -36,7 +36,7 @@ data:
   
   # Dataloader
   batch_size: 4          # Keep small for stability
-  num_workers: 4
+  num_workers: 8
   pin_memory: true
 
 # =============================================================================

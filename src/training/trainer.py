@@ -126,12 +126,18 @@ class Trainer:
         # NEW: Track collapse warnings
         self._collapse_warnings = 0
 
-    def fit(self, train_loader: DataLoader, val_loader: DataLoader) -> None:
+    def fit(self, train_loader: DataLoader, val_loader: DataLoader, resume_path: Optional[str] = None) -> None:
         print("\n" + "="*70)
         print("TRAINING STARTED")
         print("="*70)
-        
-        for epoch in range(1, self.cfg.epochs + 1):
+        # >>> PUT B HERE <<<
+        start_epoch = 1
+        if resume_path:
+            start_epoch = self._load_checkpoint(Path(resume_path))
+            print(f"[RESUME] Starting from epoch {start_epoch}/{self.cfg.epochs}")
+
+
+        for epoch in range(start_epoch, self.cfg.epochs + 1):
             train_stats = self._run_epoch(train_loader, train=True, epoch=epoch)
             val_stats = self._run_epoch(val_loader, train=False, epoch=epoch)
 
@@ -352,6 +358,33 @@ class Trainer:
         plt.savefig(plot_path, dpi=150, bbox_inches='tight')
         plt.close()
         print(f"[OK] Saved learning curves to {plot_path}")
+
+    def _load_checkpoint(self, ckpt_path: Path) -> int:
+        ckpt = torch.load(ckpt_path, map_location="cpu")
+
+        # model
+        self.model.load_state_dict(ckpt["model"])
+
+        # optimizer / scaler
+        if "optimizer" in ckpt and ckpt["optimizer"] is not None:
+            self.optimizer.load_state_dict(ckpt["optimizer"])
+        if "scaler" in ckpt and ckpt["scaler"] is not None:
+            self.scaler.load_state_dict(ckpt["scaler"])
+
+        # scheduler (optional)
+        if self.scheduler is not None and ckpt.get("scheduler") is not None:
+            try:
+                self.scheduler.load_state_dict(ckpt["scheduler"])
+            except Exception as e:
+                print(f"[RESUME] Warning: could not load scheduler state: {e}")
+
+        # best metric so far
+        self.best_metric = float(ckpt.get("best_metric", float("-inf")))
+
+        # continue at next epoch
+        last_epoch = int(ckpt.get("epoch", 0))
+        return last_epoch + 1
+
 
     def _save(self, path: Path, epoch: int, train_stats: Dict[str, float], val_stats: Dict[str, float]) -> None:
         # Remove non-serializable items before saving

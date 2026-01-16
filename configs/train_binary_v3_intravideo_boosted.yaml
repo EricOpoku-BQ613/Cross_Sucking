@@ -17,7 +17,7 @@ data:
 
   balanced_sampling: true      # Still use balanced sampling
   filter_to_id: true
-  num_workers: 0               # Set to 0 for Windows, 4+ for Linux
+  num_workers: 8               # Set to 0 for Windows, 4+ for Linux
   batch_size: 4
 
 clip:

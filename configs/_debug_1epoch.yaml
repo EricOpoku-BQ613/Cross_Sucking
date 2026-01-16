@@ -23,11 +23,8 @@ data:
 
   balanced_sampling: true      # WeightedRandomSampler for ~1:1 batch ratio
   filter_to_id: true           # Filter to ear/tail only
-  num_workers: 2
-  pin_memory: true
-  persistent_workers: true
-  prefetch_factor: 2
-  batch_size: 4
+  num_workers: 0
+  batch_size: 1
 
 clip:
   clip_len: 16
@@ -62,7 +59,7 @@ sched:
   min_lr: 0.000001
 
 train:
-  epochs: 30                   # More epochs for lower LR to converge
+  epochs: 1
   amp: true
   grad_clip: 1.0
   log_every: 20
@@ -90,7 +87,7 @@ augmentation:
 
 # VALIDATION: Multi-clip TTA for stable metrics
 validation:
-  batch_size: 4
+  batch_size: 1
   multi_clip: true             # Enable TTA during validation
   clips_per_event: 5           # Sample 5 clips per event
   aggregation: "mean"          # Average logits across clips

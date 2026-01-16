@@ -6,7 +6,7 @@ device: "cuda"   # auto-fallback to cpu if unavailable
 data:
   train_csv: "data/manifests/train.csv"
   val_csv: "data/manifests/val.csv"
-  num_workers: 4
+  num_workers: 8
   batch_size: 4
 
 clip:

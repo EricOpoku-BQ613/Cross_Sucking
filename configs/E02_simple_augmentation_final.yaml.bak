@@ -1,0 +1,238 @@
+experiment: name: E02_simple_augmentation seed: 42 description: Simple aug + temperature scaling, fixing V3 calibration issues
+data:
+  train_csv: data/manifests/train_intravideo_20260105_162028.csv
+  val_csv: data/manifests/val_intravideo_20260105_162028.csv
+  clip_len: 16
+  fps: 12
+  crop_size: 224
+  balanced_sampling: true
+  batch_size: 4
+  num_workers: 8
+  pin_memory: false
+  prefetch_factor: 1
+  persistent_workers: false
+augmentation:
+  enabled: true
+  use_temporal_consistent: true
+  p_horizontal_flip: 0.5
+  p_vertical_flip: 0.5
+  max_rotation: 15.0
+  crop_scale_min: 0.85
+  crop_scale_max: 1.0
+  max_translate: 0.05
+  brightness: 0.15
+  contrast: 0.15
+  saturation: 0.05
+  hue: 0.01
+  p_grayscale: 0.0
+  p_gaussian_blur: 0.0
+  p_random_erasing: 0.0
+  p_autocontrast: 0.0
+  p_mixup: 0.0
+  p_cutmix: 0.0
+model:
+  backbone: r3d_18
+  pretrained: true
+  pretrained_weights: KINETICS400_V1
+  num_classes: 2
+  dropout: 0.4
+  drop_path: 0.1
+  freeze_stages: 1
+  freeze_bn: false
+loss:
+  name: focal
+  gamma: 2.0
+  alpha: null
+  use_class_weights: true
+  label_smoothing: 0.1
+  class_weight_method: inverse_sqrt
+optim:
+  name: adamw
+  lr: 0.0001
+  weight_decay: 0.01
+  betas:
+  - 0.9
+  - 0.999
+  eps: 1.0e-08
+scheduler:
+  name: cosine_warmup
+  warmup_epochs: 3
+  warmup_start_lr: 1.0e-06
+  min_lr: 1.0e-06
+  t_max: 30
+train:
+  epochs: 30
+  metric_key: val_tail_f1
+  metric_mode: max
+  save_last: true
+  save_best: true
+  grad_clip: 1.0
+  grad_accumulation: 1
+  use_amp: true
+  log_train_metrics_every: 10
+  compute_train_epoch_metrics: true
+  out_dir: runs/ablation_E02
+callbacks:
+  early_stopping:
+    enabled: true
+    monitor: val_tail_f1
+    mode: max
+    patience: 10
+    min_delta: 0.001
+    verbose: true
+    restore_best_weights: true
+  model_checkpoint:
+    enabled: true
+    monitor: val_tail_f1
+    mode: max
+    save_best_only: false
+    save_last: true
+    save_every_n_epochs: 5
+    filename_format: epoch_{epoch:02d}_tailf1_{val_tail_f1:.3f}.pt
+    max_checkpoints: 3
+  lr_monitor:
+    enabled: true
+    log_momentum: true
+  overfitting_detector:
+    enabled: true
+    train_metric: train_loss
+    val_metric: val_loss
+    max_gap: 0.3
+    check_after_epoch: 5
+    action: warn
+  gradient_monitor:
+    enabled: true
+    log_every_n_steps: 50
+    log_grad_norm: true
+    log_grad_histogram: false
+    alert_on_nan: true
+    alert_on_exploding: true
+    exploding_threshold: 100.0
+  progress_bar:
+    enabled: true
+    refresh_rate: 10
+    show_metrics:
+    - loss
+    - tail_f1
+    - lr
+  csv_logger:
+    enabled: true
+    filename: training_log.csv
+    log_every_epoch: true
+    columns:
+    - epoch
+    - train_loss
+    - val_loss
+    - train_tail_f1
+    - val_tail_f1
+    - val_tail_recall
+    - val_tail_precision
+    - val_ece
+    - lr
+    - train_val_gap
+  tensorboard:
+    enabled: true
+    log_dir: runs/ablation_E02/tensorboard
+    log_graph: false
+    log_embeddings: false
+    log_histograms: false
+    log_images: true
+    log_images_every: 5
+    num_images: 8
+  learning_curve:
+    enabled: true
+    plot_every_epoch: true
+    save_path: runs/ablation_E02/learning_curves.png
+    metrics:
+    - - train_loss
+      - val_loss
+    - - train_tail_f1
+      - val_tail_f1
+    - - val_tail_recall
+      - val_tail_precision
+  confusion_matrix:
+    enabled: true
+    log_every_n_epochs: 5
+    normalize: true
+    save_path: runs/ablation_E02/confusion_matrix_epoch_{epoch}.png
+  timer:
+    enabled: true
+    log_epoch_time: true
+    log_step_time: false
+    estimate_remaining: true
+validation:
+  batch_size: 4
+  multi_clip: true
+  clips_per_event: 5
+  aggregation: mean
+  compute_confusion_matrix: true
+  compute_per_class_metrics: true
+  compute_calibration: true
+temperature_scaling:
+  enabled: true
+  fit_on: val
+  optimize_metric: ece
+  t_min: 0.5
+  t_max: 3.0
+  t_init: 1.5
+  method: lbfgs
+  max_iter: 100
+threshold_optimization:
+  enabled: true
+  thresholds:
+  - 0.3
+  - 0.35
+  - 0.4
+  - 0.45
+  - 0.5
+  - 0.55
+  - 0.6
+  primary_metric: tail_f1
+  secondary_metric: tail_recall
+  min_precision: 0.3
+output:
+  dir: runs/ablation_E02
+  save_predictions: true
+  save_logits: true
+  save_embeddings: false
+  log_to_tensorboard: true
+  log_to_csv: true
+  plot_learning_curves: true
+  plot_train_val_gap: true
+evaluation:
+  metrics:
+  - accuracy
+  - balanced_accuracy
+  - macro_f1
+  - per_class_f1
+  - per_class_precision
+  - per_class_recall
+  - mcc
+  - pr_auc
+  - roc_auc
+  - ece
+  bootstrap:
+    enabled: true
+    n_iterations: 1000
+    confidence_level: 0.95
+    metrics:
+    - tail_f1
+    - tail_precision
+    - tail_recall
+  test:
+    manifest: data/manifests/test.csv
+    apply_temperature: true
+    apply_threshold: true
+labels:
+  num_classes: 2
+  class_names:
+  - ear
+  - tail
+  id_labels:
+  - ear
+  - tail
+clip:
+  clip_len: 16
+  fps: 12
+  crop_size: 224
+device: cuda
