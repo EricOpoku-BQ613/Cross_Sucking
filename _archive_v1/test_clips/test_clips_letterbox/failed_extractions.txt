@@ -1,0 +1,1 @@
+evt=316 blank_clip_detected evt_0316_teat.mp4 src=N884A6_ch7_main_20240709060000_20240709063000.mp4

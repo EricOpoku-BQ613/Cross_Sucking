@@ -2,10 +2,11 @@
 # ===================
 # Deterministic rules for normalizing annotations
 # All changes are audited and traceable
+# Updated 2026-02-08 for full 1,897-event dataset (6 groups)
 
-version: "1.0"
+version: "2.0"
 created: "2024-12-17"
-author: "Your Name"
+updated: "2026-02-08"
 
 # Behavior label normalization
 behavior:
@@ -15,36 +16,35 @@ behavior:
   teat: teat
   other: other
   none: none
-  
+
   # Ambiguous → normalized
   "tail/teat?": tail      # Conservative: default to more common
-  "tail/teat": tail       # Same
-  "mouth": other          # Mouth sucking → other
-  "mouth?": other         # Uncertain mouth → other
-  "tailhead": tail        # Tailhead region → tail
-  
+  "tail/teat": tail        # 6 events in full dataset
+  "mouth": other           # 9 events — mouth sucking → other
+  "mouth?": other          # Uncertain mouth → other
+  "tailhead": tail         # Tailhead region → tail
+
   # Case normalization
   "Ear": ear
   "TAIL": tail
   "Teat": teat
 
 # Role/ended-by normalization
+# Uses substring matching: if any pattern appears in the raw value, maps to that role
 ended_by:
   patterns:
     initiator:
       - "initiator"
-      - "initiator-stopped"
-      - "initiator-moved"
-      - "initiator stopped"
     receiver:
       - "receiver"
-      - "receiver-moved"
-      - "receiver-walked"
-      - "receiver moved"
+      - "reciever"          # Typo in data (2 events)
     interrupted:
       - "interrupted"
       - "lost visibility"
+      - "can't tell"
       - "video ended"
+    other:
+      - "switched to"       # "switched to tail manipulation only"
   default: unknown
 
 # Pen location normalization
@@ -53,12 +53,13 @@ pen_location:
   front: front
   middle: middle
   back: back
-  
-  # Variations
+
+  # Variations found in data
   "front-at feeder": front
   "front-at water": front
-  "middlle": middle        # Typo fix
-  " back": back            # Leading space fix
+  " back": back              # Leading space (1 event)
+  "middle ": middle          # Trailing space (34 events)
+  "middlle": middle          # Typo fix
   "center": middle
 
 # Duration validation rules
@@ -69,19 +70,15 @@ duration:
 
 # Calf ID validation
 calf_ids:
-  # Known valid IDs from Group 1 Day 1 data
   valid_ranges:
-    - [5680, 5720]         # Expected ID range
-  flag_if_outside: true
+    - [5680, 5720]         # Expected ID range across all 6 groups
+  flag_if_outside: false   # Disabled — IDs span 6 groups, range not fully known
 
-# Camera validation
+# Camera validation (per group)
 cameras:
   group1: [7, 8, 9, 10]
-  group2_labeled: [10, 11, 12, 116]
-  group3_labeled: [8, 12, 14, 16]
-  
-  # Known issues
-  issues:
-    - camera: 116
-      group: 2
-      note: "Verify if typo for Cam 16"
+  group2: [10, 11, 12, 16]
+  group3: [8, 12, 14, 16]
+  group4: []               # TBD — auto-detect from video filenames
+  group5: []               # TBD
+  group6: []               # TBD

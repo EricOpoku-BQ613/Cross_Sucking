@@ -1,0 +1,19 @@
+======================================================================
+MANIFEST VERIFICATION REPORT
+======================================================================
+Manifest: data\manifests\MASTER_FINAL_CLEAN_BOUNDARYFIX.csv
+Detected schema: cleaned
+Rows: 968
+
+----------------------------------------------------------------------
+SUMMARY
+----------------------------------------------------------------------
+                   total: 968
+                      ok: 968
+           missing_video: 0
+    cannot_parse_segment: 0
+ cannot_parse_event_time: 0
+  offset_exceeds_segment: 0
+         offset_mismatch: 0
+            bad_duration: 0
+                    ok_%: 100.0%

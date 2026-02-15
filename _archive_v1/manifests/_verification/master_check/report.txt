@@ -1,0 +1,19 @@
+======================================================================
+MANIFEST VERIFICATION REPORT
+======================================================================
+Manifest: data\manifests\MASTER_FINAL_CLEAN.csv
+Detected schema: cleaned
+Rows: 968
+
+----------------------------------------------------------------------
+SUMMARY
+----------------------------------------------------------------------
+                   total: 968
+                      ok: 930
+           missing_video: 0
+    cannot_parse_segment: 0
+ cannot_parse_event_time: 0
+  offset_exceeds_segment: 38
+         offset_mismatch: 0
+            bad_duration: 0
+                    ok_%: 96.1%

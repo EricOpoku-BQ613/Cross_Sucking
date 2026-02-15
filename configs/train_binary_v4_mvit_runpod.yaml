@@ -1,0 +1,76 @@
+# configs/train_binary_v4_mvit_runpod.yaml
+#
+# MViTv2-S on RunPod — tuned for RTX 4090 (24GB, $0.50/hr spot).
+# Loads from pre-extracted clips (no E: drive required).
+#
+# Key differences from local config:
+#   - clip_dir: reads from clips_v4/ instead of source videos
+#   - batch_size: 8 (MViTv2-S + AMP uses ~5-6GB, fits 24GB easily; try 12 if stable)
+#   - accum_steps: 1 (larger batch, no need to accumulate)
+#   - num_workers: 4 (only 8 vCPU on RTX 4090 pod, leave headroom for main process)
+#   - epochs: 50 (RTX 4090 fast — full run ~1-1.5hr = ~$0.60)
+#   - early_stopping_patience: 15 (more patience with more epochs)
+
+seed: 42
+device: "cuda"
+
+data:
+  train_csv: "data/manifests/train_v4.csv"
+  val_csv: "data/manifests/val_v4.csv"
+  clip_dir: "data/processed/clips_v4"   # Load from pre-extracted clips
+
+  balanced_sampling: true
+  filter_to_id: true
+  num_workers: 4                         # 8 vCPU pod — 4 workers is safe
+  batch_size: 8                          # 24GB VRAM handles batch 8 easily with AMP
+
+clip:
+  clip_len: 16
+  fps: 12
+
+labels:
+  num_classes: 2
+  class_names: ["ear", "tail"]
+  id_labels: ["ear", "tail"]
+
+model:
+  backbone: "mvit_v2_s"
+  pretrained: true
+  head: "linear"
+  head_dropout: 0.3
+
+loss:
+  name: "focal"
+  gamma: 2.0
+  use_class_weights: true    # 6.85x weight on tail — critical for minority class
+  label_smoothing: 0.05      # Reduce smoothing: softer targets hurt tail precision
+
+optim:
+  name: "adamw"
+  lr: 0.00002              # Halved — transformer on small minority class needs conservative LR
+  weight_decay: 0.05
+
+sched:
+  name: "cosine_warmup"
+  t_max: 50
+  min_lr: 0.0000005
+  warmup_epochs: 5          # Longer warmup with lower LR
+  warmup_start_lr: 0.0000005
+
+train:
+  epochs: 50
+  amp: true
+  grad_clip: 1.0
+  log_every: 50
+  out_dir: "runs/sup_binary_v4_mvit"
+  metric_key: "f1_tail"
+  accum_steps: 1                         # No accumulation needed with batch_size=8
+  early_stopping: true
+  early_stopping_patience: 15
+  early_stopping_min_delta: 0.001
+  save_per_sample_loss: true
+
+augmentation:
+  use_trivial_augment: true
+  use_mixup: true
+  mixup_alpha: 0.4           # Stronger mixup — prevents model committing fully to ear

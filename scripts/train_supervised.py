@@ -54,6 +54,8 @@ def load_cfg(path: str | Path) -> Dict[str, Any]:
 
 
 def make_scheduler(cfg: Dict[str, Any], optimizer: torch.optim.Optimizer):
+    import math
+
     name = cfg.get("sched", {}).get("name", "none")
     if name == "none":
         return None
@@ -61,6 +63,21 @@ def make_scheduler(cfg: Dict[str, Any], optimizer: torch.optim.Optimizer):
         t_max = int(cfg["sched"].get("t_max", cfg["train"]["epochs"]))
         min_lr = float(cfg["sched"].get("min_lr", 1e-6))
         return torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=t_max, eta_min=min_lr)
+    if name == "cosine_warmup":
+        t_max = int(cfg["sched"].get("t_max", cfg["train"]["epochs"]))
+        min_lr = float(cfg["sched"].get("min_lr", 1e-6))
+        warmup_epochs = int(cfg["sched"].get("warmup_epochs", 3))
+        warmup_start_lr = float(cfg["sched"].get("warmup_start_lr", 1e-6))
+        base_lr = float(cfg["optim"]["lr"])
+
+        def lr_lambda(epoch):
+            if epoch < warmup_epochs:
+                return warmup_start_lr / base_lr + (1 - warmup_start_lr / base_lr) * (epoch / warmup_epochs)
+            progress = (epoch - warmup_epochs) / max(1, t_max - warmup_epochs)
+            return min_lr / base_lr + 0.5 * (1 - min_lr / base_lr) * (1 + math.cos(math.pi * progress))
+
+        print(f"[Scheduler] cosine_warmup: {warmup_epochs} warmup epochs, {t_max} total, min_lr={min_lr}")
+        return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
     if name == "plateau":
         return torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="max", factor=0.5, patience=2)
     raise ValueError(f"Unknown scheduler: {name}")
@@ -179,6 +196,8 @@ class AugmentedDataset(torch.utils.data.Dataset):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", type=str, default="configs/train.yaml")
+    ap.add_argument("--resume", type=str, default=None, help="Path to a .ckpt to resume from (e.g., runs/.../last.ckpt)")
+    
     args = ap.parse_args()
 
     cfg = load_cfg(args.config)
@@ -220,17 +239,23 @@ def main():
         filter_manifest(val_csv, used_val_csv, keep_labels=id_labels)
 
     # datasets
+    clip_dir = cfg["data"].get("clip_dir", None)
+    if clip_dir:
+        print(f"[DataLoader] Clip mode: loading from {clip_dir}")
+
     ds_train_base = LabeledEventDataset(
         str(used_train_csv),
         mode="train",
         clip_len=int(cfg["clip"]["clip_len"]),
         fps=int(cfg["clip"]["fps"]),
+        clip_dir=clip_dir,
     )
     ds_val = LabeledEventDataset(
         str(used_val_csv),
         mode="eval",
         clip_len=int(cfg["clip"]["clip_len"]),
         fps=int(cfg["clip"]["fps"]),
+        clip_dir=clip_dir,
     )
     
     # Apply augmentation to training set
@@ -295,6 +320,7 @@ def main():
         pretrained=bool(cfg["model"].get("pretrained", False)),
         dropout=float(cfg["model"].get("backbone_dropout", 0.0)),
         freeze_backbone=bool(cfg["model"].get("freeze_backbone", False)),
+        slowfast_alpha=int(cfg["model"].get("slowfast_alpha", 4)),
     )
 
     head_name = cfg["model"].get("head", "linear")
@@ -362,6 +388,10 @@ def main():
         metric_key=metric_key,
         class_names=class_names,
         accum_steps=int(cfg["train"].get("accum_steps", 1)),
+        early_stopping=bool(cfg["train"].get("early_stopping", False)),
+        early_stopping_patience=int(cfg["train"].get("early_stopping_patience", 10)),
+        early_stopping_min_delta=float(cfg["train"].get("early_stopping_min_delta", 0.001)),
+        save_per_sample_loss=bool(cfg["train"].get("save_per_sample_loss", False)),
     )
 
     trainer = Trainer(
@@ -374,7 +404,7 @@ def main():
         cfg=tcfg,
     )
 
-    trainer.fit(dl_train, dl_val)
+    trainer.fit(dl_train, dl_val, resume_path=args.resume)
     print(f"\nDone. Artifacts in: {out_dir.resolve()}")
 
 

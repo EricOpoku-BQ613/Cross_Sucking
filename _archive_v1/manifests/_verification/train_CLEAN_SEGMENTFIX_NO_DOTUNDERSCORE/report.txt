@@ -1,0 +1,19 @@
+======================================================================
+MANIFEST VERIFICATION REPORT
+======================================================================
+Manifest: data\manifests\train_CLEAN_SEGMENTFIX_NO_DOTUNDERSCORE.csv
+Detected schema: cleaned
+Rows: 802
+
+----------------------------------------------------------------------
+SUMMARY
+----------------------------------------------------------------------
+                   total: 802
+                      ok: 802
+           missing_video: 0
+    cannot_parse_segment: 0
+ cannot_parse_event_time: 0
+  offset_exceeds_segment: 0
+         offset_mismatch: 0
+            bad_duration: 84
+                    ok_%: 100.0%

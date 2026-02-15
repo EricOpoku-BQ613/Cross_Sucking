@@ -1,0 +1,2 @@
+event_idx,behavior,status,issue,video_filename,start_time,duration_sec,stored_offset,calculated_offset,video_duration
+620,ear,FAIL,"OFFSET_EXCEEDS_DURATION(offset=1800,video=1799)",N884A6_ch7_main_20240709153000_20240709160000.mp4,16:00:00,3.0,1800.0,1800.0,1799.4199999999998

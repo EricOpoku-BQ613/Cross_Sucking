@@ -1,0 +1,79 @@
+# configs/train_binary_v4_mvit.yaml
+#
+# MViTv2-S backbone for binary ear/tail classification on v4 data.
+#
+# MViTv2-S (Multiscale Vision Transformer v2 - Small):
+#   - 768-dim features (vs 512 for R3D-18)
+#   - Pretrained on Kinetics-400
+#   - Multi-scale temporal/spatial attention
+#   - ~34.5M params (vs ~33.4M for R3D-18)
+#
+# Changes from r3d_18 config:
+#   - backbone: mvit_v2_s
+#   - Lower LR (transformers need smaller LR than CNNs)
+#   - batch_size: 2 (MViT uses more memory than R3D-18)
+#   - accum_steps: 2 (effective batch size stays at 4)
+#   - 30 epochs (transformers need more warmup)
+
+seed: 42
+device: "cuda"
+
+data:
+  train_csv: "data/manifests/train_v4.csv"
+  val_csv: "data/manifests/val_v4.csv"
+
+  balanced_sampling: true
+  filter_to_id: true
+  num_workers: 2
+  batch_size: 2               # MViTv2-S uses more GPU memory
+
+clip:
+  clip_len: 16
+  fps: 12
+
+labels:
+  num_classes: 2
+  class_names: ["ear", "tail"]
+  id_labels: ["ear", "tail"]
+
+model:
+  backbone: "mvit_v2_s"
+  pretrained: true
+  head: "linear"
+  head_dropout: 0.3
+
+loss:
+  name: "focal"
+  gamma: 2.0
+  use_class_weights: false
+  label_smoothing: 0.1
+
+optim:
+  name: "adamw"
+  lr: 0.00005               # Lower LR for transformer backbone
+  weight_decay: 0.05         # Higher WD typical for ViT
+
+sched:
+  name: "cosine_warmup"
+  t_max: 30
+  min_lr: 0.000001
+  warmup_epochs: 3
+  warmup_start_lr: 0.000001   # Ramp from 1e-6 -> 5e-5 over 3 epochs
+
+train:
+  epochs: 30
+  amp: true
+  grad_clip: 1.0
+  log_every: 20
+  out_dir: "runs/sup_binary_v4_mvit"
+  metric_key: "f1_tail"
+  accum_steps: 2             # Effective batch size = 2 * 2 = 4
+  early_stopping: true
+  early_stopping_patience: 10
+  early_stopping_min_delta: 0.001
+  save_per_sample_loss: true  # Export per-sample loss CSV for noise detection
+
+augmentation:
+  use_trivial_augment: true
+  use_mixup: false
+  mixup_alpha: 0.2

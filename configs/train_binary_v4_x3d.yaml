@@ -1,0 +1,67 @@
+# configs/train_binary_v4_x3d.yaml
+#
+# X3D-M backbone for binary ear/tail classification on v4 data.
+#
+# X3D-M (Expanded 3D - Medium):
+#   - 2048-dim features
+#   - Pretrained on Kinetics-400
+#   - Only ~3.0M params (extremely efficient)
+#   - Channel-wise separable convolutions
+#   - Progressive expansion of width/depth/resolution
+
+seed: 42
+device: "cuda"
+
+data:
+  train_csv: "data/manifests/train_v4.csv"
+  val_csv: "data/manifests/val_v4.csv"
+
+  balanced_sampling: true
+  filter_to_id: true
+  num_workers: 4
+  batch_size: 8               # X3D-M is lightweight, larger batch OK
+
+clip:
+  clip_len: 16
+  fps: 12
+
+labels:
+  num_classes: 2
+  class_names: ["ear", "tail"]
+  id_labels: ["ear", "tail"]
+
+model:
+  backbone: "x3d_m"
+  pretrained: true
+  head: "linear"
+  head_dropout: 0.3
+
+loss:
+  name: "focal"
+  gamma: 2.0
+  use_class_weights: false
+  label_smoothing: 0.1
+
+optim:
+  name: "adamw"
+  lr: 0.0001
+  weight_decay: 0.01
+
+sched:
+  name: "cosine"
+  t_max: 20
+  min_lr: 0.000001
+
+train:
+  epochs: 20
+  amp: true
+  grad_clip: 1.0
+  log_every: 20
+  out_dir: "runs/sup_binary_v4_x3d"
+  metric_key: "macro_f1"
+  accum_steps: 1
+
+augmentation:
+  use_trivial_augment: true
+  use_mixup: false
+  mixup_alpha: 0.2

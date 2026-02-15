@@ -1,0 +1,54 @@
+{
+  "timestamp": "2026-02-08T13:48:44.731641",
+  "input_file": "D:\\cross_sucking\\cross_sucking\\data\\manifests\\final_manifest.xlsx",
+  "total_events": 1897,
+  "behavior": {
+    "before": {
+      "ear": 1651,
+      "tail": 219,
+      "teat": 12,
+      "mouth": 9,
+      "tail/teat": 6
+    },
+    "after": {
+      "ear": 1651,
+      "tail": 225,
+      "teat": 12,
+      "other": 9
+    }
+  },
+  "ended_by": {
+    "initiator": 1082,
+    "receiver": 787,
+    "interrupted": 27,
+    "other": 1
+  },
+  "pen_location": {
+    "middle": 1019,
+    "front": 591,
+    "back": 287
+  },
+  "duration_flagged": "1",
+  "nulls": {
+    "event_idx": 0,
+    "group": 0,
+    "day": 0,
+    "date": 0,
+    "start_time": 0,
+    "end_time": 0,
+    "duration_sec": 0,
+    "behavior": 0,
+    "initiator_id": 0,
+    "receiver_id": 0,
+    "ended_by": 0,
+    "pen_location": 0,
+    "behavior_raw": 0,
+    "ended_by_raw": 0,
+    "pen_location_raw": 0,
+    "date_raw": 0,
+    "notes_at": 1865,
+    "notes_bd": 1874,
+    "notes_checked_bd": 0,
+    "duration_flag": 1896
+  }
+}

@@ -6,8 +6,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
 
+import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 # For learning curve plots
@@ -32,9 +35,17 @@ class TrainConfig:
     # checkpointing
     save_best: bool = True
     metric_key: str = "macro_f1"
-    
-    # NEW: class names for logging (optional)
+
+    # class names for logging (optional)
     class_names: Optional[List[str]] = None
+
+    # early stopping
+    early_stopping: bool = False
+    early_stopping_patience: int = 10
+    early_stopping_min_delta: float = 0.001
+
+    # per-sample loss export (for noise detection)
+    save_per_sample_loss: bool = False
 
 
 def _confusion_matrix(pred: torch.Tensor, target: torch.Tensor, num_classes: int) -> torch.Tensor:
@@ -110,8 +121,8 @@ class Trainer:
         self.best_metric = float("-inf")
         self.best_path = self.cfg.out_dir / "best.ckpt"
         self.last_path = self.cfg.out_dir / "last.ckpt"
-        
-        # NEW: History for learning curves
+
+        # History for learning curves
         self.history: Dict[str, List[float]] = {
             "epoch": [],
             "lr": [],
@@ -119,19 +130,31 @@ class Trainer:
             "val_loss": [],
             "train_macro_f1": [],
             "val_macro_f1": [],
-            "val_tail_recall": [],  # Critical for imbalanced
+            "val_tail_recall": [],
             "val_tail_f1": [],
+            "train_val_gap": [],
         }
-        
-        # NEW: Track collapse warnings
+
+        # Track collapse warnings
         self._collapse_warnings = 0
 
-    def fit(self, train_loader: DataLoader, val_loader: DataLoader) -> None:
+        # Early stopping state
+        self._es_counter = 0
+        self._es_best = float("-inf")
+
+    def fit(self, train_loader: DataLoader, val_loader: DataLoader, resume_path: Optional[str] = None) -> None:
+        start_epoch = 1
+        if resume_path:
+            start_epoch = self._load_checkpoint(resume_path)
+            print(f"[Resume] Resuming from epoch {start_epoch}")
+
         print("\n" + "="*70)
         print("TRAINING STARTED")
+        if self.cfg.early_stopping:
+            print(f"  Early stopping: patience={self.cfg.early_stopping_patience} on {self.cfg.metric_key}")
         print("="*70)
-        
-        for epoch in range(1, self.cfg.epochs + 1):
+
+        for epoch in range(start_epoch, self.cfg.epochs + 1):
             train_stats = self._run_epoch(train_loader, train=True, epoch=epoch)
             val_stats = self._run_epoch(val_loader, train=False, epoch=epoch)
 
@@ -154,21 +177,44 @@ class Trainer:
                 is_best = True
 
             lr = self.optimizer.param_groups[0]["lr"]
-            
+
             # Update history
             self._update_history(epoch, lr, train_stats, val_stats)
-            
+
             # Print epoch summary with TAIL METRICS
             self._print_epoch_summary(epoch, lr, train_stats, val_stats, is_best)
-            
+
             # Check for collapse
             self._check_collapse(val_stats, epoch)
+
+            # Train-val gap warning
+            gap = train_stats["loss"] - val_stats["loss"]
+            if epoch >= 5 and gap < -0.3:
+                print(f"  [OVERFIT WARNING] train_loss - val_loss = {gap:.3f}")
+
+            # Early stopping
+            if self.cfg.early_stopping:
+                if metric > self._es_best + self.cfg.early_stopping_min_delta:
+                    self._es_best = metric
+                    self._es_counter = 0
+                else:
+                    self._es_counter += 1
+                    remaining = self.cfg.early_stopping_patience - self._es_counter
+                    print(f"  [Early stopping] No improvement for {self._es_counter} epochs (patience: {remaining} left)")
+                    if self._es_counter >= self.cfg.early_stopping_patience:
+                        print(f"\n  Early stopping triggered at epoch {epoch}")
+                        break
+
+        # Per-sample loss export for noise detection
+        if self.cfg.save_per_sample_loss:
+            self._export_per_sample_loss(val_loader, "val")
+            self._export_per_sample_loss(train_loader, "train")
 
         # Save learning curves
         self._save_history()
         if HAS_PLT:
             self._plot_learning_curves()
-        
+
         print("\n" + "="*70)
         print(f"TRAINING COMPLETE - Best {self.cfg.metric_key}: {self.best_metric:.4f}")
         print("="*70)
@@ -253,6 +299,10 @@ class Trainer:
         tail_f1 = val_stats.get("f1_tail", val_stats.get("f1_c1", 0.0))
         self.history["val_tail_recall"].append(tail_recall)
         self.history["val_tail_f1"].append(tail_f1)
+
+        # Train-val gap (positive = overfitting)
+        gap = train_stats["macro_f1"] - val_stats["macro_f1"]
+        self.history["train_val_gap"].append(gap)
 
     def _print_epoch_summary(self, epoch: int, lr: float, train_stats: Dict, val_stats: Dict, is_best: bool) -> None:
         """Print comprehensive epoch summary with tail metrics."""
@@ -370,3 +420,65 @@ class Trainer:
             "cfg": {k: str(v) if isinstance(v, Path) else v for k, v in self.cfg.__dict__.items()},
         }
         torch.save(payload, path)
+
+    def _load_checkpoint(self, resume_path: str) -> int:
+        """Load checkpoint and restore training state. Returns start epoch."""
+        ckpt = torch.load(resume_path, map_location=self.device, weights_only=False)
+        self.model.load_state_dict(ckpt["model"])
+        self.optimizer.load_state_dict(ckpt["optimizer"])
+        self.scaler.load_state_dict(ckpt["scaler"])
+        if self.scheduler is not None and ckpt.get("scheduler") is not None:
+            self.scheduler.load_state_dict(ckpt["scheduler"])
+        self.best_metric = ckpt.get("best_metric", float("-inf"))
+        start_epoch = ckpt.get("epoch", 0) + 1
+        print(f"[Resume] Loaded checkpoint from {resume_path} (epoch {ckpt.get('epoch', '?')})")
+        return start_epoch
+
+    @torch.no_grad()
+    def _export_per_sample_loss(self, loader: DataLoader, split_name: str) -> None:
+        """Export per-sample loss for noise detection.
+
+        Saves a CSV with columns: sample_idx, loss, predicted, label.
+        High-loss samples are likely mislabeled or ambiguous.
+        """
+        self.model.eval()
+        all_losses = []
+        all_preds = []
+        all_labels = []
+
+        for batch in loader:
+            x, y = batch
+            x = x.to(self.device, non_blocking=True)
+            y = y.to(self.device, non_blocking=True)
+
+            with torch.amp.autocast(device_type="cuda", enabled=self.use_amp):
+                logits = _extract_logits(self.model(x))
+                # Per-sample loss (no reduction)
+                losses = F.cross_entropy(logits, y, reduction="none")
+
+            all_losses.append(losses.cpu())
+            all_preds.append(torch.argmax(logits, dim=1).cpu())
+            all_labels.append(y.cpu())
+
+        all_losses = torch.cat(all_losses).numpy()
+        all_preds = torch.cat(all_preds).numpy()
+        all_labels = torch.cat(all_labels).numpy()
+
+        df = pd.DataFrame({
+            "sample_idx": np.arange(len(all_losses)),
+            "loss": all_losses,
+            "predicted": all_preds,
+            "label": all_labels,
+            "correct": (all_preds == all_labels).astype(int),
+        })
+        df = df.sort_values("loss", ascending=False)
+
+        out_path = self.cfg.out_dir / f"per_sample_loss_{split_name}.csv"
+        df.to_csv(out_path, index=False)
+
+        # Print top-loss summary
+        n_wrong = (all_preds != all_labels).sum()
+        print(f"\n[Per-sample loss] {split_name}: exported {len(df)} samples to {out_path}")
+        print(f"  Mean loss: {all_losses.mean():.4f}, Max: {all_losses.max():.4f}")
+        print(f"  Misclassified: {n_wrong}/{len(df)} ({100*n_wrong/len(df):.1f}%)")
+        print(f"  Top-10 highest loss samples: {df['sample_idx'].head(10).tolist()}")

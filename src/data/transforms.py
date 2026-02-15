@@ -110,7 +110,7 @@ def apply_per_frame(x: torch.Tensor, frame_tf: Optional[Callable]) -> torch.Tens
         frame = xt[t]  # (C,H,W) float [0,1]
         frame_cpu = frame.detach().cpu()
 
-        arr = (frame_cpu.permute(1, 2, 0).numpy() * 255.0).clip(0, 255).astype(np.uint8)
+        arr = (frame_cpu.clamp(0.0, 1.0) * 255).to(torch.uint8).permute(1, 2, 0).numpy()
         img = Image.fromarray(arr)
 
         out = frame_tf(img)  # typically torch.Tensor (C,H,W) in [0,1] after ToTensor()

@@ -1,0 +1,335 @@
+{
+  "timestamp": "2026-02-08T13:45:34.999951",
+  "stats": {
+    "moved": 65,
+    "deleted": 0,
+    "missing": 1
+  },
+  "entries": [
+    {
+      "action": "move",
+      "from": "breakdown_splits.py",
+      "to": "_archive_v1/root/breakdown_splits.py"
+    },
+    {
+      "action": "move",
+      "from": "check_corrupted.py",
+      "to": "_archive_v1/root/check_corrupted.py"
+    },
+    {
+      "action": "move",
+      "from": "check_label_distribution.py",
+      "to": "_archive_v1/root/check_label_distribution.py"
+    },
+    {
+      "action": "move",
+      "from": "patch_labels.py",
+      "to": "_archive_v1/root/patch_labels.py"
+    },
+    {
+      "action": "move",
+      "from": "cleanup_project.py",
+      "to": "_archive_v1/root/cleanup_project.py"
+    },
+    {
+      "action": "move",
+      "from": "activate.bat",
+      "to": "_archive_v1/root/activate.bat"
+    },
+    {
+      "action": "move",
+      "from": "setup_venv.bat",
+      "to": "_archive_v1/root/setup_venv.bat"
+    },
+    {
+      "action": "move",
+      "from": "_tmp_read.py",
+      "to": "_archive_v1/root/_tmp_read.py"
+    },
+    {
+      "action": "move",
+      "from": "run_training.bat",
+      "to": "_archive_v1/root/run_training.bat"
+    },
+    {
+      "action": "move",
+      "from": "run_training.sh",
+      "to": "_archive_v1/root/run_training.sh"
+    },
+    {
+      "action": "move",
+      "from": "audit_results.csv",
+      "to": "_archive_v1/root/audit_results.csv"
+    },
+    {
+      "action": "move",
+      "from": "audit_results_FAILURES.csv",
+      "to": "_archive_v1/root/audit_results_FAILURES.csv"
+    },
+    {
+      "action": "move",
+      "from": "CLUSTER_DEPLOYMENT_CHECKLIST.md",
+      "to": "_archive_v1/root/CLUSTER_DEPLOYMENT_CHECKLIST.md"
+    },
+    {
+      "action": "move",
+      "from": "FIXED_AND_READY.md",
+      "to": "_archive_v1/root/FIXED_AND_READY.md"
+    },
+    {
+      "action": "move",
+      "from": "READY_FOR_CLUSTER.md",
+      "to": "_archive_v1/root/READY_FOR_CLUSTER.md"
+    },
+    {
+      "action": "move",
+      "from": "TRAINING_PLAN.md",
+      "to": "_archive_v1/root/TRAINING_PLAN.md"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/MASTER_FINAL_CLEAN.csv",
+      "to": "_archive_v1/manifests/MASTER_FINAL_CLEAN.csv"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/MASTER_FINAL_CLEAN_BOUNDARYFIX.csv",
+      "to": "_archive_v1/manifests/MASTER_FINAL_CLEAN_BOUNDARYFIX.csv"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/MASTER_FINAL_CLEAN_v2.csv",
+      "to": "_archive_v1/manifests/MASTER_FINAL_CLEAN_v2.csv"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/linked_events.csv",
+      "to": "_archive_v1/manifests/linked_events.csv"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/train.csv",
+      "to": "_archive_v1/manifests/train.csv"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/val.csv",
+      "to": "_archive_v1/manifests/val.csv"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/test.csv",
+      "to": "_archive_v1/manifests/test.csv"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/train_CLEAN.csv",
+      "to": "_archive_v1/manifests/train_CLEAN.csv"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/val_CLEAN.csv",
+      "to": "_archive_v1/manifests/val_CLEAN.csv"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/test_CLEAN.csv",
+      "to": "_archive_v1/manifests/test_CLEAN.csv"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/train_CLEAN_SEGMENTFIX.csv",
+      "to": "_archive_v1/manifests/train_CLEAN_SEGMENTFIX.csv"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/train_CLEAN_SEGMENTFIX_NO_DOTUNDERSCORE.csv",
+      "to": "_archive_v1/manifests/train_CLEAN_SEGMENTFIX_NO_DOTUNDERSCORE.csv"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/train_CLEAN_SEGMENTFIX_report.csv",
+      "to": "_archive_v1/manifests/train_CLEAN_SEGMENTFIX_report.csv"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/train_FINAL_CLEAN.csv",
+      "to": "_archive_v1/manifests/train_FINAL_CLEAN.csv"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/train_intravideo_20260105_162028.csv",
+      "to": "_archive_v1/manifests/train_intravideo_20260105_162028.csv"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/train_intravideo_20260105_162114.csv",
+      "to": "_archive_v1/manifests/train_intravideo_20260105_162114.csv"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/val_intravideo_20260105_162028.csv",
+      "to": "_archive_v1/manifests/val_intravideo_20260105_162028.csv"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/val_intravideo_20260105_162114.csv",
+      "to": "_archive_v1/manifests/val_intravideo_20260105_162114.csv"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/_archive",
+      "to": "_archive_v1/manifests/_archive"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/_verification",
+      "to": "_archive_v1/manifests/_verification"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/splits",
+      "to": "_archive_v1/manifests/splits"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/intravideo",
+      "to": "_archive_v1/manifests/intravideo"
+    },
+    {
+      "action": "move",
+      "from": "data/manifests/analysis",
+      "to": "_archive_v1/manifests/analysis"
+    },
+    {
+      "action": "move",
+      "from": "data/raw_exports",
+      "to": "_archive_v1/raw_exports/raw_exports"
+    },
+    {
+      "action": "move",
+      "from": "data/reports",
+      "to": "_archive_v1/reports/reports"
+    },
+    {
+      "action": "move",
+      "from": "analysis",
+      "to": "_archive_v1/analysis/analysis"
+    },
+    {
+      "action": "move",
+      "from": "test_clips_letterbox",
+      "to": "_archive_v1/test_clips/test_clips_letterbox"
+    },
+    {
+      "action": "move",
+      "from": "data/annotations/combined_group1_days1_4_clean_with_flags.csv",
+      "to": "_archive_v1/annotations/combined_group1_days1_4_clean_with_flags.csv"
+    },
+    {
+      "action": "move",
+      "from": "data/annotations/qa_flags.csv",
+      "to": "_archive_v1/annotations/qa_flags.csv"
+    },
+    {
+      "action": "move",
+      "from": "configs/train_binary_baseline_old_split.yaml",
+      "to": "_archive_v1/configs/train_binary_baseline_old_split.yaml"
+    },
+    {
+      "action": "move",
+      "from": "configs/train_binary_v3_intravideo.yaml",
+      "to": "_archive_v1/configs/train_binary_v3_intravideo.yaml"
+    },
+    {
+      "action": "move",
+      "from": "configs/train_binary_v3_intravideo_boosted.yaml",
+      "to": "_archive_v1/configs/train_binary_v3_intravideo_boosted.yaml"
+    },
+    {
+      "action": "move",
+      "from": "configs/E02_simple_augmentation_final.yaml",
+      "to": "_archive_v1/configs/E02_simple_augmentation_final.yaml"
+    },
+    {
+      "action": "move",
+      "from": "configs/split_protocol.yaml",
+      "to": "_archive_v1/configs/split_protocol.yaml"
+    },
+    {
+      "action": "move",
+      "from": "scripts/confirm_smoke_overlap.py",
+      "to": "_archive_v1/scripts/confirm_smoke_overlap.py"
+    },
+    {
+      "action": "move",
+      "from": "scripts/verify_smoke_final.py",
+      "to": "_archive_v1/scripts/verify_smoke_final.py"
+    },
+    {
+      "action": "move",
+      "from": "scripts/create_test_events.py",
+      "to": "_archive_v1/scripts/create_test_events.py"
+    },
+    {
+      "action": "move",
+      "from": "scripts/collapse_labels.py",
+      "to": "_archive_v1/scripts/collapse_labels.py"
+    },
+    {
+      "action": "move",
+      "from": "scripts/boost_val_tail.py",
+      "to": "_archive_v1/scripts/boost_val_tail.py"
+    },
+    {
+      "action": "move",
+      "from": "scripts/check_confound.py",
+      "to": "_archive_v1/scripts/check_confound.py"
+    },
+    {
+      "action": "move",
+      "from": "scripts/check_video_confound.py",
+      "to": "_archive_v1/scripts/check_video_confound.py"
+    },
+    {
+      "action": "move",
+      "from": "scripts/fix_manifest_paths.py",
+      "to": "_archive_v1/scripts/fix_manifest_paths.py"
+    },
+    {
+      "action": "move",
+      "from": "scripts/fix_manifest_segment_mapping.py",
+      "to": "_archive_v1/scripts/fix_manifest_segment_mapping.py"
+    },
+    {
+      "action": "move",
+      "from": "scripts/fix_offset_exceeds_segment.py",
+      "to": "_archive_v1/scripts/fix_offset_exceeds_segment.py"
+    },
+    {
+      "action": "move",
+      "from": "scripts/extract_feral_segmentfix_opencv.py",
+      "to": "_archive_v1/scripts/extract_feral_segmentfix_opencv.py"
+    },
+    {
+      "action": "move",
+      "from": "scripts/diagnose_results",
+      "to": "_archive_v1/scripts/diagnose_results"
+    },
+    {
+      "action": "move",
+      "from": "scripts/aggregate_ablation_results.py",
+      "to": "_archive_v1/scripts/aggregate_ablation_results.py"
+    },
+    {
+      "action": "move",
+      "from": "scripts/test_training_pipeline.py",
+      "to": "_archive_v1/scripts/test_training_pipeline.py"
+    },
+    {
+      "action": "move",
+      "from": "scripts/__pycache__",
+      "to": "_archive_v1/scripts/__pycache__"
+    }
+  ]
+}

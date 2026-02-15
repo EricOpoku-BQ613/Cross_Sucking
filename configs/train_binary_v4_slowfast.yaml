@@ -1,0 +1,69 @@
+# configs/train_binary_v4_slowfast.yaml
+#
+# SlowFast R50 backbone for binary ear/tail classification on v4 data.
+#
+# SlowFast R50:
+#   - 2304-dim features (slow 2048 + fast 256)
+#   - Pretrained on Kinetics-400
+#   - Dual-pathway: slow (8 frames) captures spatial, fast (32 frames) captures motion
+#   - ~33.6M params
+#   - Requires clip_len=32 (slow=8, fast=32 with alpha=4)
+#   - slowfast_alpha=4 set in backbone constructor
+
+seed: 42
+device: "cuda"
+
+data:
+  train_csv: "data/manifests/train_v4.csv"
+  val_csv: "data/manifests/val_v4.csv"
+
+  balanced_sampling: true
+  filter_to_id: true
+  num_workers: 4
+  batch_size: 2               # SlowFast with 32 frames uses more memory
+
+clip:
+  clip_len: 32                # Required: slow=8, fast=32 with alpha=4
+  fps: 12
+
+labels:
+  num_classes: 2
+  class_names: ["ear", "tail"]
+  id_labels: ["ear", "tail"]
+
+model:
+  backbone: "slowfast_r50"
+  pretrained: true
+  head: "linear"
+  head_dropout: 0.3
+  slowfast_alpha: 4
+
+loss:
+  name: "focal"
+  gamma: 2.0
+  use_class_weights: false
+  label_smoothing: 0.1
+
+optim:
+  name: "adamw"
+  lr: 0.0001
+  weight_decay: 0.01
+
+sched:
+  name: "cosine"
+  t_max: 20
+  min_lr: 0.000001
+
+train:
+  epochs: 20
+  amp: true
+  grad_clip: 1.0
+  log_every: 20
+  out_dir: "runs/sup_binary_v4_slowfast"
+  metric_key: "macro_f1"
+  accum_steps: 2             # Effective batch size = 2 * 2 = 4
+
+augmentation:
+  use_trivial_augment: true
+  use_mixup: false
+  mixup_alpha: 0.2

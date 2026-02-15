@@ -1,0 +1,101 @@
+{
+  "timestamp": "2026-02-08T13:57:19.560417",
+  "total_events": 1897,
+  "durations": {
+    "histogram": {
+      "0-1s": 196,
+      "1-3s": 571,
+      "3-5s": 341,
+      "5-10s": 388,
+      "10-30s": 345,
+      "30-60s": 47,
+      "60s+": 9
+    },
+    "stats": {
+      "mean": 6.866631523458092,
+      "median": 4.0,
+      "std": 11.414358642293129,
+      "min": 0.0,
+      "max": 272.0,
+      "p25": 1.0,
+      "p75": 8.0,
+      "p90": 17.0,
+      "p95": 24.0
+    },
+    "zero_duration_count": 196,
+    "by_behavior": {
+      "ear": {
+        "count": 1651,
+        "mean": 7.2428831011508175,
+        "median": 4.0
+      },
+      "tail": {
+        "count": 225,
+        "mean": 4.0,
+        "median": 2.0
+      },
+      "teat": {
+        "count": 12,
+        "mean": 12.083333333333334,
+        "median": 3.5
+      },
+      "other": {
+        "count": 9,
+        "mean": 2.5555555555555554,
+        "median": 2.0
+      }
+    }
+  },
+  "temporal_density": {
+    "unique_videos_with_events": 211,
+    "events_per_video": {
+      "mean": 8.990521327014218,
+      "median": 7.0,
+      "max": 44
+    },
+    "overlapping_events": 58,
+    "clustered_events_under_5s": 419,
+    "gap_stats": {
+      "mean": 96.51897983392645,
+      "median": 22.0
+    }
+  },
+  "video_coverage": {
+    "events_by_group_camera": {
+      "1": {
+        "7": 671
+      },
+      "2": {
+        "10": 171,
+        "16": 65
+      },
+      "3": {
+        "8": 157,
+        "16": 174
+      },
+      "4": {
+        "3": 68
+      },
+      "5": {
+        "1": 73
+      },
+      "6": {
+        "2": 518
+      }
+    }
+  },
+  "suggested_params": {
+    "training": {
+      "clip_len": 48,
+      "fps": 12,
+      "window_sec": 4.0
+    },
+    "extraction": {
+      "pad_before_sec": 3,
+      "pad_after_sec": 3,
+      "min_clip_duration_sec": 6,
+      "target_fps": 12,
+      "target_resolution": "512x288"
+    }
+  }
+}

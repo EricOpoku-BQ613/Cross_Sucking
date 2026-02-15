@@ -19,11 +19,14 @@ class LabeledEventDataset(Dataset):
     """
     Supervised dataset that returns a clip tensor and a class label.
 
-    Expected columns in csv:
-      - video_path
-      - behavior
-      - event_offset_sec
-      - duration_sec
+    Two loading modes:
+      1. Source-video mode (default): reads from original 4K video on disk.
+         Required CSV columns: video_path, behavior, event_offset_sec, duration_sec
+
+      2. Clip mode (clip_dir != None): reads from pre-extracted clip files.
+         Clip files must follow naming: evt_{event_idx:04d}_{behavior}.mp4
+         Required CSV columns: event_idx, behavior
+         Clips missing from disk are silently dropped from the dataset.
     """
     def __init__(
         self,
@@ -33,11 +36,13 @@ class LabeledEventDataset(Dataset):
         fps: int = 12,
         size: int = 224,
         label_col: str = "behavior",
+        clip_dir: Optional[str | Path] = None,
     ):
         self.csv_path = Path(csv_path)
-        self.df = pd.read_csv(self.csv_path)
+        df = pd.read_csv(self.csv_path)
         self.mode = mode
         self.label_col = label_col
+        self.clip_dir = Path(clip_dir) if clip_dir is not None else None
 
         self.cfg = ClipConfig(
             clip_len=clip_len,
@@ -49,10 +54,33 @@ class LabeledEventDataset(Dataset):
         # Use supervised (milder) preset
         self.frame_tf = build_frame_transform("train" if mode == "train" else "eval", size=size, preset="sup")
 
-        required = ["video_path", self.label_col, "event_offset_sec", "duration_sec"]
-        missing = [c for c in required if c not in self.df.columns]
-        if missing:
-            raise ValueError(f"{self.csv_path} missing columns: {missing}. Found={list(self.df.columns)}")
+        if self.clip_dir is not None:
+            # Clip mode: only need event_idx + label
+            required = ["event_idx", self.label_col]
+            missing = [c for c in required if c not in df.columns]
+            if missing:
+                raise ValueError(f"{self.csv_path} missing columns: {missing}. Found={list(df.columns)}")
+
+            # Filter to rows where the clip file actually exists
+            def _clip_path(row) -> Path:
+                return self.clip_dir / f"evt_{int(row['event_idx']):04d}_{str(row[self.label_col]).strip().lower()}.mp4"
+
+            mask = df.apply(lambda r: _clip_path(r).exists(), axis=1)
+            n_before = len(df)
+            df = df[mask].reset_index(drop=True)
+            n_dropped = n_before - len(df)
+            if n_dropped > 0:
+                print(f"[ClipDataset] Dropped {n_dropped}/{n_before} rows — clip files not found on disk")
+            else:
+                print(f"[ClipDataset] All {len(df)} clips found in {self.clip_dir}")
+        else:
+            # Source-video mode
+            required = ["video_path", self.label_col, "event_offset_sec", "duration_sec"]
+            missing = [c for c in required if c not in df.columns]
+            if missing:
+                raise ValueError(f"{self.csv_path} missing columns: {missing}. Found={list(df.columns)}")
+
+        self.df = df
 
     def __len__(self) -> int:
         return len(self.df)
@@ -60,22 +88,28 @@ class LabeledEventDataset(Dataset):
     def __getitem__(self, idx: int):
         row = self.df.iloc[idx]
 
-        video_path = str(row["video_path"])
-
         label_str = str(row[self.label_col]).strip().lower()
         y = LABEL_MAP.get(label_str, -1)
         if y < 0:
             raise ValueError(f"Unknown {self.label_col}='{label_str}' at row {idx} in {self.csv_path}")
 
-        event_offset_sec = float(row["event_offset_sec"])
-        duration_sec = float(row["duration_sec"])
-
-        frames = read_event_clip_decord(
-            video_path,
-            self.cfg,
-            event_offset_sec=event_offset_sec,
-            duration_sec=duration_sec,
-        )
+        if self.clip_dir is not None:
+            # Load from pre-extracted clip (no seeking needed — whole clip is the event)
+            clip_path = self.clip_dir / f"evt_{int(row['event_idx']):04d}_{label_str}.mp4"
+            frames = read_event_clip_decord(
+                str(clip_path),
+                self.cfg,
+                event_offset_sec=None,
+                duration_sec=None,
+            )
+        else:
+            # Load from source video with event seeking
+            frames = read_event_clip_decord(
+                str(row["video_path"]),
+                self.cfg,
+                event_offset_sec=float(row["event_offset_sec"]),
+                duration_sec=float(row["duration_sec"]),
+            )
 
         x = to_tensor_clip(frames)               # (C,T,H,W) float [0,1] CPU
         x = apply_per_frame(x, self.frame_tf)    # (C,T,H,W) float [0,1] CPU

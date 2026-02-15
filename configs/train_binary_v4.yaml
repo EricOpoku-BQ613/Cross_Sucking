@@ -1,0 +1,77 @@
+# configs/train_binary_v4.yaml
+#
+# v4 configuration for binary ear/tail classification
+#
+# Key improvements over previous configs:
+# - Camera-corrected linking (MASTER_LINKED_v4.csv)
+# - Bout-grouped intra-video splits (no temporal leakage)
+# - OOD test set: Groups 4+5 (unseen cameras 3, 1)
+# - 1,735 dev events (train+val), 141 OOD test events
+#
+# Split summary:
+#   Train: 1,374 events (175 tail, 12.7%) from Groups 1,2,3,6
+#   Val:     361 events  (38 tail, 10.5%) from Groups 1,2,3,6
+#   Test:    141 events  (12 tail,  8.5%) from Groups 4,5 (OOD)
+#
+# Camera mapping:
+#   Group 1: Cam 8  | Group 2: Cam 16 | Group 3: Cam 12
+#   Group 4: Cam 3  | Group 5: Cam 1  | Group 6: Cam 12
+
+seed: 42
+device: "cuda"
+
+data:
+  train_csv: "data/manifests/train_v4.csv"
+  val_csv: "data/manifests/val_v4.csv"
+  # test_csv: "data/manifests/test_ood_v4.csv"  # For final evaluation only
+
+  balanced_sampling: true      # WeightedRandomSampler for ~1:1 batch ratio
+  filter_to_id: true           # Filter to ear/tail only
+  num_workers: 4
+  batch_size: 4
+
+clip:
+  clip_len: 16
+  fps: 12
+
+labels:
+  num_classes: 2
+  class_names: ["ear", "tail"]
+  id_labels: ["ear", "tail"]
+
+model:
+  backbone: "r3d_18"
+  pretrained: true
+  head: "linear"
+  head_dropout: 0.3
+
+# No class weights — sampler already handles balance
+loss:
+  name: "focal"
+  gamma: 2.0
+  use_class_weights: false
+  label_smoothing: 0.1
+
+optim:
+  name: "adamw"
+  lr: 0.0001
+  weight_decay: 0.01
+
+sched:
+  name: "cosine"
+  t_max: 20
+  min_lr: 0.000001
+
+train:
+  epochs: 20
+  amp: true
+  grad_clip: 1.0
+  log_every: 20
+  out_dir: "runs/sup_binary_v4"
+  metric_key: "macro_f1"
+  accum_steps: 1
+
+augmentation:
+  use_trivial_augment: true
+  use_mixup: false
+  mixup_alpha: 0.2

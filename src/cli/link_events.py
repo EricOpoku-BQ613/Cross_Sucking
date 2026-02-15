@@ -60,8 +60,9 @@ def parse_video_times(filename: str) -> Optional[Tuple[datetime, datetime]]:
 
 def get_event_date(row: pd.Series) -> Optional[datetime]:
     """Extract date from event row."""
-    if 'Date' in row and pd.notna(row['Date']):
-        date_val = row['Date']
+    date_col = 'Date' if 'Date' in row else 'date'
+    if date_col in row and pd.notna(row[date_col]):
+        date_val = row[date_col]
         if isinstance(date_val, str):
             for fmt in ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y']:
                 try:
@@ -79,38 +80,56 @@ def find_video_for_event(
     videos: List[Dict],
     tolerance_sec: int = 60
 ) -> Optional[Dict]:
-    """Find the video file containing an event."""
+    """Find the video file containing an event.
+
+    Uses two-pass matching:
+      1. Exact match: event falls within [video_start, video_end)
+      2. Tolerance match: event within tolerance of video bounds (fallback)
+    This prevents events just past a video's end from matching that video
+    when the next video in the sequence is the correct one.
+    """
     event_time_only = event_time.time()
-    
+
+    exact_match = None
+    tolerance_match = None
+
     for video in videos:
         video_times = parse_video_times(video['filename'])
         if not video_times:
             continue
-            
+
         video_start, video_end = video_times
-        
+
         if event_date:
             if video_start.date() != event_date.date():
                 continue
-        
+
         event_datetime = datetime.combine(video_start.date(), event_time_only)
-        
-        start_with_tolerance = video_start - timedelta(seconds=tolerance_sec)
-        end_with_tolerance = video_end + timedelta(seconds=tolerance_sec)
-        
-        if start_with_tolerance <= event_datetime <= end_with_tolerance:
-            offset = (event_datetime - video_start).total_seconds()
-            
-            return {
-                'video_filename': video['filename'],
-                'video_path': video['path'],
-                'video_start': video_start.isoformat(),
-                'video_end': video_end.isoformat(),
-                'event_offset_sec': max(0, offset),
-                'video_duration_sec': video.get('duration_sec', (video_end - video_start).total_seconds())
-            }
-    
-    return None
+        offset = (event_datetime - video_start).total_seconds()
+        video_duration = (video_end - video_start).total_seconds()
+
+        result = {
+            'video_filename': video['filename'],
+            'video_path': video['path'],
+            'video_start': video_start.isoformat(),
+            'video_end': video_end.isoformat(),
+            'event_offset_sec': max(0, offset),
+            'video_duration_sec': video.get('duration_sec', video_duration)
+        }
+
+        # Pass 1: exact match — event within actual video bounds
+        if video_start <= event_datetime < video_end:
+            if exact_match is None or offset < exact_match['event_offset_sec']:
+                exact_match = result
+
+        # Pass 2: tolerance match — only if no exact match found later
+        elif tolerance_match is None:
+            start_tol = video_start - timedelta(seconds=tolerance_sec)
+            end_tol = video_end + timedelta(seconds=tolerance_sec)
+            if start_tol <= event_datetime <= end_tol:
+                tolerance_match = result
+
+    return exact_match or tolerance_match
 
 
 def link_events_to_videos(events_df: pd.DataFrame, manifest: Dict) -> Tuple[pd.DataFrame, List, Dict]:
@@ -139,10 +158,10 @@ def link_events_to_videos(events_df: pd.DataFrame, manifest: Dict) -> Tuple[pd.D
     console.print(f"\n[bold]Linking {len(events_df)} events to videos...[/bold]\n")
     
     for idx, row in track(events_df.iterrows(), total=len(events_df), description="Linking"):
-        group = row.get('Group')
-        day = row.get('Day')
-        
-        start_time_col = 'Start.time' if 'Start.time' in row else 'Start_time'
+        group = row.get('Group', row.get('group'))
+        day = row.get('Day', row.get('day'))
+
+        start_time_col = 'Start.time' if 'Start.time' in row else ('Start_time' if 'Start_time' in row else 'start_time')
         start_time = parse_time(row.get(start_time_col))
         
         if start_time is None:
@@ -168,19 +187,22 @@ def link_events_to_videos(events_df: pd.DataFrame, manifest: Dict) -> Tuple[pd.D
                 found_camera = cam_id
                 break
         
+        end_time_col = 'End.time' if 'End.time' in row else ('End_time' if 'End_time' in row else 'end_time')
+        end_time_parsed = parse_time(row.get(end_time_col))
+
         result = {
-            'event_idx': idx,
+            'event_idx': row.get('event_idx', idx),
             'group': group,
             'day': day,
             'date': event_date.strftime('%Y-%m-%d') if event_date else None,
             'start_time': str(start_time.time()) if start_time else None,
-            'end_time': str(parse_time(row.get('End.time', row.get('End_time'))).time()) if parse_time(row.get('End.time', row.get('End_time'))) else None,
-            'duration_sec': row.get('Duration'),
-            'behavior': row.get('behavior_normalized', row.get('Behavior')),
-            'initiator_id': row.get('ID.initiator', row.get('ID_initiator')),
-            'receiver_id': row.get('ID.receiver', row.get('ID_receiver')),
-            'ended_by': row.get('ended_by_normalized', row.get('Ended.by.initiator.or.receiver.')),
-            'pen_location': row.get('pen_location_normalized', row.get('Pen.location')),
+            'end_time': str(end_time_parsed.time()) if end_time_parsed else None,
+            'duration_sec': row.get('duration_sec', row.get('Duration')),
+            'behavior': row.get('behavior', row.get('behavior_normalized', row.get('Behavior'))),
+            'initiator_id': row.get('initiator_id', row.get('ID.initiator', row.get('ID_initiator'))),
+            'receiver_id': row.get('receiver_id', row.get('ID.receiver', row.get('ID_receiver'))),
+            'ended_by': row.get('ended_by', row.get('ended_by_normalized', row.get('Ended.by.initiator.or.receiver.'))),
+            'pen_location': row.get('pen_location', row.get('pen_location_normalized', row.get('Pen.location'))),
         }
         
         if video_found:
