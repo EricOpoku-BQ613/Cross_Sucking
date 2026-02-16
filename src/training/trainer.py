@@ -116,7 +116,7 @@ class Trainer:
         self.cfg.out_dir.mkdir(parents=True, exist_ok=True)
 
         self.use_amp = bool(cfg.amp and device.type == "cuda")
-        self.scaler = torch.amp.GradScaler("cuda", enabled=self.use_amp)
+        self.scaler = torch.cuda.amp.GradScaler(enabled=self.use_amp)
 
         self.best_metric = float("-inf")
         self.best_path = self.cfg.out_dir / "best.ckpt"
@@ -241,7 +241,7 @@ class Trainer:
                     dist_str = {int(k): int(v) for k, v in zip(uniq_y.cpu(), cnt_y.cpu())}
                     print(f"[{'TR' if train else 'VA'}] epoch={epoch} y_dist: {dist_str}", end="")
 
-            with torch.amp.autocast(device_type="cuda", enabled=self.use_amp):
+            with torch.cuda.amp.autocast(enabled=self.use_amp):
                 logits = _extract_logits(self.model(x))
                 loss = self.criterion(logits, y)
 
@@ -451,7 +451,7 @@ class Trainer:
             x = x.to(self.device, non_blocking=True)
             y = y.to(self.device, non_blocking=True)
 
-            with torch.amp.autocast(device_type="cuda", enabled=self.use_amp):
+            with torch.cuda.amp.autocast(enabled=self.use_amp):
                 logits = _extract_logits(self.model(x))
                 # Per-sample loss (no reduction)
                 losses = F.cross_entropy(logits, y, reduction="none")
