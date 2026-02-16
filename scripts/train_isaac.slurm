@@ -4,11 +4,10 @@
 #SBATCH --error=/lustre/isaac24/scratch/eopoku2/runs/slurm_%j.log
 #
 # ---- GPU & resource request ----
-# Check your available partitions with: sinfo -s
-# Common ISAAC-NG GPU partitions: campus, condo, gpu
-# Update the line below once you know your partition name.
+# campus-gpu: general GPU partition on ISAAC-NG (verified 2026-02)
+# Alternatives if busy: campus-gpu-large (6 nodes, bigger GPUs)
 #
-#SBATCH --partition=campus
+#SBATCH --partition=campus-gpu
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=10         # 8 workers + 2 headroom
