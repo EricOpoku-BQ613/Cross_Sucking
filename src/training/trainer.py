@@ -1,6 +1,7 @@
 # src/training/trainer.py
 from __future__ import annotations
 
+import contextlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -241,7 +242,8 @@ class Trainer:
                     dist_str = {int(k): int(v) for k, v in zip(uniq_y.cpu(), cnt_y.cpu())}
                     print(f"[{'TR' if train else 'VA'}] epoch={epoch} y_dist: {dist_str}", end="")
 
-            with torch.cuda.amp.autocast(enabled=self.use_amp):
+            _no_grad = torch.no_grad() if not train else contextlib.nullcontext()
+            with _no_grad, torch.cuda.amp.autocast(enabled=self.use_amp):
                 logits = _extract_logits(self.model(x))
                 loss = self.criterion(logits, y)
 
