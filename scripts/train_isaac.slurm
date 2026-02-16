@@ -69,7 +69,7 @@ print('VRAM:', round(torch.cuda.get_device_properties(0).total_memory / 1e9, 1),
 # ---------------------------------------------------------------------------
 echo ""
 echo "===== Data check ====="
-CLIP_DIR="/lustre/isaac24/scratch/eopoku2/clips_v4"
+CLIP_DIR="/lustre/isaac24/scratch/eopoku2/clips_v4/clips_v4"
 echo "Clips dir: $CLIP_DIR"
 echo "Clip count: $(ls $CLIP_DIR/*.mp4 2>/dev/null | wc -l)"
 

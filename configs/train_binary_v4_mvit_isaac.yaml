@@ -19,7 +19,7 @@ device: "cuda"
 data:
   train_csv: "data/manifests/train_v4.csv"
   val_csv: "data/manifests/val_v4.csv"
-  clip_dir: "/lustre/isaac24/scratch/eopoku2/clips_v4"   # Globus transfer destination
+  clip_dir: "/lustre/isaac24/scratch/eopoku2/clips_v4/clips_v4"   # Globus nested copy
 
   balanced_sampling: true
   filter_to_id: true
