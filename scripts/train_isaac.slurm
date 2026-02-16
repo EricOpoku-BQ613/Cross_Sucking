@@ -1,34 +1,26 @@
 #!/bin/bash
 #SBATCH --job-name=cross_sucking_mvit
-#SBATCH --output=/lustre/isaac24/scratch/eopoku2/runs/slurm_%j.log
-#SBATCH --error=/lustre/isaac24/scratch/eopoku2/runs/slurm_%j.log
-#
-# ---- GPU & resource request ----
-# campus-gpu: general GPU partition on ISAAC-NG (verified 2026-02)
-# Alternatives if busy: campus-gpu-large (6 nodes, bigger GPUs)
-#
+#SBATCH --account=acf-utk0011
 #SBATCH --partition=campus-gpu
-#SBATCH --account=ACF-UTK0011
+#SBATCH --qos=campus-gpu
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=10         # 8 workers + 2 headroom
-#SBATCH --gres=gpu:1               # 1 GPU (A100, V100, or whatever is available)
-#SBATCH --mem=64G                  # 64GB RAM — Lustre I/O + num_workers=8 needs ~32GB
-#SBATCH --time=08:00:00            # 8 hours: 50 epochs should finish in 2-4hr on A100
-#
-# ---- Email notifications ----
+#SBATCH --cpus-per-task=8
+#SBATCH --gres=gpu:1
+#SBATCH --mem=64G
+#SBATCH --time=12:00:00
+#SBATCH --output=/lustre/isaac24/scratch/eopoku2/runs/slurm_%j.log
+#SBATCH --error=/lustre/isaac24/scratch/eopoku2/runs/slurm_%j.log
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=eopoku2@utk.edu
 #
-# ---- Notes ----
-# If you get a V100 (16GB VRAM), reduce batch_size to 8:
-#   Edit configs/train_binary_v4_mvit_isaac.yaml: batch_size: 8
-# Or pass batch_size override on CLI if supported.
+# NOTE: Before first submission, create the output dir on the login node:
+#   mkdir -p /lustre/isaac24/scratch/eopoku2/runs
 #
 # To submit:   sbatch scripts/train_isaac.slurm
 # To cancel:   scancel <job_id>
 # To monitor:  squeue -u $USER
-# To check GPU: squeue -j <job_id> -o "%.18i %.9P %.8j %.8u %.8T %.10M %.9l %.6D %R %b"
+# To watch:    tail -f /lustre/isaac24/scratch/eopoku2/runs/slurm_<job_id>.log
 
 set -e
 
@@ -36,73 +28,56 @@ echo "===== Job info ====="
 echo "Job ID:   $SLURM_JOB_ID"
 echo "Node:     $SLURMD_NODENAME"
 echo "Start:    $(date)"
-echo "Working:  $(pwd)"
 echo ""
 
 # ---------------------------------------------------------------------------
-# 1. Load modules (verified on ISAAC-NG 2026-02)
+# 1. Activate conda (miniforge)
 # ---------------------------------------------------------------------------
-module purge
-module load cuda/12.1.1-binary
-module load anaconda3/2024.06
-
-# ---------------------------------------------------------------------------
-# 2. Activate conda environment
-# ---------------------------------------------------------------------------
-source activate cross_sucking
-echo "Python: $(which python)"
+source ~/miniforge3/etc/profile.d/conda.sh
+conda activate cross_sucking
+echo "Python:  $(which python)"
 echo "PyTorch: $(python -c 'import torch; print(torch.__version__)')"
 
 # ---------------------------------------------------------------------------
-# 3. Verify GPU
+# 2. Verify GPU
 # ---------------------------------------------------------------------------
 echo ""
-echo "===== GPU info ====="
 python -c "
 import torch
 print('CUDA:', torch.cuda.is_available())
-print('GPU: ', torch.cuda.get_device_name(0))
-print('VRAM:', round(torch.cuda.get_device_properties(0).total_memory / 1e9, 1), 'GB')
+if torch.cuda.is_available():
+    print('GPU: ', torch.cuda.get_device_name(0))
+    print('VRAM:', round(torch.cuda.get_device_properties(0).total_memory / 1e9, 1), 'GB')
 "
 
 # ---------------------------------------------------------------------------
-# 4. Verify data
+# 3. Verify data
 # ---------------------------------------------------------------------------
-echo ""
-echo "===== Data check ====="
 CLIP_DIR="/lustre/isaac24/scratch/eopoku2/clips_v4/clips_v4"
-echo "Clips dir: $CLIP_DIR"
+echo ""
 echo "Clip count: $(ls $CLIP_DIR/*.mp4 2>/dev/null | wc -l)"
 
 # ---------------------------------------------------------------------------
-# 5. Create output directory
-# ---------------------------------------------------------------------------
-mkdir -p /lustre/isaac24/scratch/eopoku2/runs
-
-# ---------------------------------------------------------------------------
-# 6. Change to repo directory
-#    Adjust REPO_DIR to wherever you cloned the code on ISAAC
+# 4. Change to repo directory
 # ---------------------------------------------------------------------------
 REPO_DIR="/lustre/isaac24/scratch/eopoku2/cross_sucking"
-# OR if cloned to home: REPO_DIR="$HOME/cross_sucking"
 cd $REPO_DIR
-echo ""
-echo "Repo dir: $REPO_DIR"
+echo "Repo:     $REPO_DIR"
 
 # ---------------------------------------------------------------------------
-# 7. Run training (auto-resume if last.ckpt exists)
+# 5. Run training — auto-resumes if last.ckpt exists
 # ---------------------------------------------------------------------------
 LAST_CKPT="/lustre/isaac24/scratch/eopoku2/runs/sup_binary_v4_mvit/last.ckpt"
 
 echo ""
 echo "===== Training start: $(date) ====="
 if [ -f "$LAST_CKPT" ]; then
-    echo "Found checkpoint — resuming from $LAST_CKPT"
+    echo "Resuming from $LAST_CKPT"
     python -u scripts/train_supervised.py \
         --config configs/train_binary_v4_mvit_isaac.yaml \
         --resume "$LAST_CKPT"
 else
-    echo "No checkpoint found — starting fresh"
+    echo "No checkpoint — starting fresh"
     python -u scripts/train_supervised.py \
         --config configs/train_binary_v4_mvit_isaac.yaml
 fi
