@@ -43,29 +43,34 @@ else
     echo "  Created env 'cross_sucking'."
 fi
 
-# Activate
-source activate cross_sucking
+# Activate — use 'conda activate' not 'source activate' for reliable env switching
+eval "$(conda shell.bash hook)"
+conda activate cross_sucking
 echo "  Active env: $CONDA_DEFAULT_ENV"
+echo "  Python:     $(which python)"
 echo ""
 
 # ---------------------------------------------------------------------------
-# 3. Install PyTorch with CUDA 12.1
+# 3. Install PyTorch with CUDA 12.1 (verbose — show errors if any)
 # ---------------------------------------------------------------------------
 echo "[3/5] Installing PyTorch..."
 pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 \
-    --index-url https://download.pytorch.org/whl/cu121 -q
+    --index-url https://download.pytorch.org/whl/cu121
+
+# Verify torch installed before continuing
+python -c "import torch; print('  torch OK:', torch.__version__)"
 
 # ---------------------------------------------------------------------------
 # 4. Install project requirements (no torch — already installed above)
 # ---------------------------------------------------------------------------
 echo "[4/5] Installing requirements..."
-pip install -r requirements.txt -q
+pip install -r requirements.txt
 
 # ---------------------------------------------------------------------------
 # 5. Install project package
 # ---------------------------------------------------------------------------
 echo "[5/5] Installing project package..."
-pip install -e . -q
+pip install -e .
 
 # ---------------------------------------------------------------------------
 # Verify

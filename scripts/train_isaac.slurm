@@ -31,11 +31,31 @@ echo "Start:    $(date)"
 echo ""
 
 # ---------------------------------------------------------------------------
-# 1. Activate conda (miniforge)
+# 1. Activate conda
+#    Try miniforge first, fall back to system anaconda module
 # ---------------------------------------------------------------------------
-source ~/miniforge3/etc/profile.d/conda.sh
+if [ -f "$HOME/miniforge3/etc/profile.d/conda.sh" ]; then
+    source "$HOME/miniforge3/etc/profile.d/conda.sh"
+elif [ -f "$HOME/anaconda3/etc/profile.d/conda.sh" ]; then
+    source "$HOME/anaconda3/etc/profile.d/conda.sh"
+else
+    eval "$(conda shell.bash hook)"
+fi
 conda activate cross_sucking
 echo "Python:  $(which python)"
+
+# ---------------------------------------------------------------------------
+# 1b. Ensure torch is installed (guard against silent pip failures in setup)
+# ---------------------------------------------------------------------------
+if ! python -c "import torch" 2>/dev/null; then
+    echo "torch not found — installing now..."
+    REPO_DIR="/lustre/isaac24/scratch/eopoku2/cross_sucking"
+    pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 \
+        --index-url https://download.pytorch.org/whl/cu121 -q
+    pip install -r "$REPO_DIR/requirements.txt" -q
+    pip install -e "$REPO_DIR" -q
+    echo "Installation complete."
+fi
 echo "PyTorch: $(python -c 'import torch; print(torch.__version__)')"
 
 # ---------------------------------------------------------------------------
