@@ -8,6 +8,7 @@
 # Alternatives if busy: campus-gpu-large (6 nodes, bigger GPUs)
 #
 #SBATCH --partition=campus-gpu
+#SBATCH --account=ACF-UTK0011
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=10         # 8 workers + 2 headroom
