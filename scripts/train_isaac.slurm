@@ -4,12 +4,11 @@
 #SBATCH --error=/lustre/isaac24/scratch/eopoku2/runs/slurm_%j.log
 #
 # ---- GPU & resource request ----
-# ISAAC-NG partitions (use whichever you have access to):
-#   campus-gpu   -- campus allocation (most common)
-#   gpu          -- general GPU partition
-#   isaac-gpu    -- ISAAC-specific (check with: sinfo -s)
+# Check your available partitions with: sinfo -s
+# Common ISAAC-NG GPU partitions: campus, condo, gpu
+# Update the line below once you know your partition name.
 #
-#SBATCH --partition=campus-gpu
+#SBATCH --partition=campus
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=10         # 8 workers + 2 headroom
@@ -41,12 +40,11 @@ echo "Working:  $(pwd)"
 echo ""
 
 # ---------------------------------------------------------------------------
-# 1. Load modules (must match what was used in setup_isaac.sh)
+# 1. Load modules (verified on ISAAC-NG 2026-02)
 # ---------------------------------------------------------------------------
 module purge
-module load GCCcore/12.3.0
-module load CUDA/12.1.1
-module load Anaconda3/2023.09-0
+module load cuda/12.1.1-binary
+module load anaconda3/2024.06
 
 # ---------------------------------------------------------------------------
 # 2. Activate conda environment
@@ -92,12 +90,22 @@ echo ""
 echo "Repo dir: $REPO_DIR"
 
 # ---------------------------------------------------------------------------
-# 7. Run training
+# 7. Run training (auto-resume if last.ckpt exists)
 # ---------------------------------------------------------------------------
+LAST_CKPT="/lustre/isaac24/scratch/eopoku2/runs/sup_binary_v4_mvit/last.ckpt"
+
 echo ""
 echo "===== Training start: $(date) ====="
-python -u scripts/train_supervised.py \
-    --config configs/train_binary_v4_mvit_isaac.yaml
+if [ -f "$LAST_CKPT" ]; then
+    echo "Found checkpoint — resuming from $LAST_CKPT"
+    python -u scripts/train_supervised.py \
+        --config configs/train_binary_v4_mvit_isaac.yaml \
+        --resume "$LAST_CKPT"
+else
+    echo "No checkpoint found — starting fresh"
+    python -u scripts/train_supervised.py \
+        --config configs/train_binary_v4_mvit_isaac.yaml
+fi
 
 echo ""
 echo "===== Training done: $(date) ====="

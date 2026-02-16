@@ -21,14 +21,12 @@ echo "Working dir: $(pwd)"
 echo ""
 
 # ---------------------------------------------------------------------------
-# 1. Load system modules
-#    ISAAC module names — check current names with: module spider cuda
+# 1. Load system modules (verified on ISAAC-NG 2026-02)
 # ---------------------------------------------------------------------------
 echo "[1/5] Loading modules..."
 module purge
-module load GCCcore/12.3.0
-module load CUDA/12.1.1            # or CUDA/12.4.0 — whichever is available
-module load Anaconda3/2023.09-0    # check with: module spider Anaconda
+module load cuda/12.1.1-binary
+module load anaconda3/2024.06
 
 echo "CUDA: $(nvcc --version | grep release | awk '{print $6}')"
 echo ""
