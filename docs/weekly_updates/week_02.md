@@ -215,18 +215,29 @@ GRES:            gpu:1
 
 The job includes an auto-resume mechanism: at startup, the SLURM script checks for the existence of `last.ckpt` in the output directory. If found, training resumes from that checkpoint; otherwise it starts from epoch 0. This ensures that job resubmission after timeout or preemption is idempotent.
 
-As of writing, the ISAAC job is in `PD` (pending) state, queued behind higher-priority jobs on the `campus-gpu` partition.
+The ISAAC job is now running. Epoch 1 completed successfully:
+
+| Metric | Epoch 1 Value |
+|---|---|
+| Val Macro F1 | 0.4492 |
+| Val EAR F1 / Recall | 0.7437 / 0.6378 |
+| Val TAIL F1 / Recall | 0.1548 / 0.3421 (n=38) |
+| LR (cosine warmup) | 4.40e-06 |
+
+Tail recall of 0.34 in epoch 1 confirms the minority class is not collapsed. The LR is still in the warmup phase (max 2×10⁻⁵); metrics are expected to improve through epochs 5–15.
+
+**Allocated GPU**: Tesla V100S-PCIE-32GB (32 GiB VRAM). Note: SLURM allocates from the shared pool; the V100S is the available campus-gpu card, not a dedicated A100.
 
 **Key ISAAC configuration parameters** (`configs/train_binary_v4_mvit_isaac.yaml`):
 
 | Parameter | Value | Notes |
 |---|---|---|
 | `data.clip_dir` | `/lustre/isaac24/scratch/eopoku2/clips_v4/clips_v4` | Lustre scratch, Globus nested copy |
-| `data.batch_size` | 16 | A100 40/80GB with AMP |
+| `data.batch_size` | 16 | V100S-32GB with AMP; fills ~23 GB |
 | `data.num_workers` | 8 | 8 CPUs allocated per job |
 | `train.out_dir` | `/lustre/isaac24/scratch/eopoku2/runs/sup_binary_v4_mvit` | On Lustre scratch for fast I/O |
 | `train.metric_key` | f1_tail | Monitor tail-class F1 |
-| `train.epochs` | 50 | Full run expected in ~2–4hr on A100 |
+| `train.epochs` | 50 | Full run expected in ~4–8hr on V100S |
 
 ---
 
@@ -372,6 +383,10 @@ All three experiments will be evaluated using identical metrics on the same test
 | NumPy 2.x incompatibility | System numpy version > 2.0 conflicts with PyTorch 2.1 | `pip install "numpy<2.0"` |
 | Globus nested directory | Globus copied folder into destination creating `clips_v4/clips_v4/` | Updated `clip_dir` in config to reflect actual path |
 | SSH permission denied (RunPod) | Campus firewall blocks port 48282; authorized_keys malformed | Mobile hotspot bypass; fix authorized_keys via web terminal |
+| `torch.amp.GradScaler` AttributeError | `torch.amp.GradScaler("cuda", ...)` API is PyTorch 2.0+; ISAAC build behaved differently | Changed to `torch.cuda.amp.GradScaler(enabled=...)` — compatible with all torch ≥ 1.6 |
+| `torch.amp.autocast` same issue | Same API class; both GradScaler and autocast affected in two call sites | Changed to `torch.cuda.amp.autocast(enabled=...)` in `_run_epoch` and `_export_per_sample_loss` |
+| CUDA OOM during validation (epoch 1) | Validation forward pass had no `torch.no_grad()`: full computation graph built (~10 GB extra) on top of training state (~23 GB), exceeding 32 GB | Wrapped val forward pass: `_no_grad = torch.no_grad() if not train else contextlib.nullcontext()` |
+| `prepare_feral_json.py` reports 0 clips | `clips_feral/` does not exist — `resize_clips_feral.sh` must run first | Submit resize job before running JSON prep; feral_annotations.json will be empty until resize completes |
 
 ---
 
@@ -391,6 +406,134 @@ All three experiments will be evaluated using identical metrics on the same test
 5. **Plan E3 (domain adaptation)**: Define the sampling strategy for the 960-hour unlabeled corpus. Key decisions: clip duration (5–10s), sampling interval (every N minutes), and whether to include all cameras or only indoor cameras.
 
 6. **Per-sample loss analysis**: After E1 completes, analyze the exported per-sample loss CSV to identify potential label noise or consistently hard examples.
+
+---
+
+## 10. ISAAC-NG Monitoring Reference
+
+### 10.1 Job Management
+
+```bash
+# Submit a job
+sbatch scripts/train_isaac.slurm
+sbatch scripts/train_feral.slurm
+sbatch scripts/resize_clips_feral.sh
+
+# Check all your running and pending jobs
+squeue -u $USER
+
+# Check jobs with more detail (time used, node, state)
+squeue -u $USER -o "%.10i %.20j %.8T %.10M %.6D %R"
+
+# Cancel a job
+scancel <job_id>
+
+# Cancel all your jobs at once
+scancel -u $USER
+```
+
+### 10.2 Monitoring Training Output
+
+```bash
+# Stream the log as it writes (most useful during active training)
+tail -f /lustre/isaac24/scratch/eopoku2/runs/slurm_<job_id>.log
+
+# Show only epoch summaries and BEST checkpoints
+tail -f /lustre/isaac24/scratch/eopoku2/runs/slurm_<job_id>.log | grep -E "Epoch|TAIL|BEST|Early"
+
+# Check the last 50 lines without following
+tail -50 /lustre/isaac24/scratch/eopoku2/runs/slurm_<job_id>.log
+
+# Find the most recent log file automatically
+ls -t /lustre/isaac24/scratch/eopoku2/runs/slurm_*.log | head -1
+
+# Stream the most recent log automatically
+tail -f $(ls -t /lustre/isaac24/scratch/eopoku2/runs/slurm_*.log | head -1)
+```
+
+### 10.3 Checking GPU Usage (on Compute Node)
+
+```bash
+# After SSHing into the compute node (hostname from squeue output)
+nvidia-smi
+
+# Continuous refresh every 2 seconds
+watch -n 2 nvidia-smi
+
+# Just memory and utilization
+nvidia-smi --query-gpu=memory.used,memory.total,utilization.gpu --format=csv
+```
+
+### 10.4 Disk and File Checks
+
+```bash
+# Check how many clips are in each directory
+ls /lustre/isaac24/scratch/eopoku2/clips_v4/clips_v4/*.mp4 | wc -l    # 4K clips (E1)
+ls /lustre/isaac24/scratch/eopoku2/clips_feral/*.mp4 | wc -l           # 256px clips (E2)
+
+# Check disk usage in scratch
+du -sh /lustre/isaac24/scratch/eopoku2/
+
+# Check checkpoints exist (training is producing output)
+ls -lh /lustre/isaac24/scratch/eopoku2/runs/sup_binary_v4_mvit/
+
+# Confirm latest checkpoint epoch
+python -c "
+import torch
+ckpt = torch.load('/lustre/isaac24/scratch/eopoku2/runs/sup_binary_v4_mvit/last.ckpt', map_location='cpu')
+print('Epoch:', ckpt['epoch'])
+print('Best metric (f1_tail):', ckpt.get('best_metric', 'N/A'))
+print('Val stats:', {k:round(v,4) for k,v in ckpt['val_stats'].items() if 'tail' in k or 'macro' in k})
+"
+```
+
+### 10.5 Pulling Code Updates and Resubmitting
+
+```bash
+# On the login node — pull fixes and resubmit
+cd /lustre/isaac24/scratch/eopoku2/cross_sucking
+git pull
+
+# Cancel old job and resubmit (or just resubmit if job already failed)
+scancel <old_job_id>   # skip if already failed
+sbatch scripts/train_isaac.slurm
+```
+
+### 10.6 Checking Partition Availability
+
+```bash
+# See available partitions and their state
+sinfo
+
+# See GPU nodes specifically
+sinfo -p campus-gpu
+
+# See how many jobs are ahead of yours in the queue
+squeue -p campus-gpu --sort=S | head -20
+```
+
+### 10.7 FERAL Prerequisite Sequence
+
+```bash
+# Step 1: Resize clips (CPU job, ~30-60 min, no GPU)
+sbatch scripts/resize_clips_feral.sh
+# Monitor: tail -f /lustre/isaac24/scratch/eopoku2/runs/resize_*.log
+
+# Step 2: Build FERAL JSON (run interactively after resize)
+conda activate cross_sucking
+python scripts/prepare_feral_json.py \
+    --clip-dir /lustre/isaac24/scratch/eopoku2/clips_feral \
+    --output   data/manifests/feral_annotations.json
+# Expect: Train: 1374 clips, Val: 361 clips, Test: 141 clips
+
+# Step 3: Clone FERAL repo (once)
+cd /lustre/isaac24/scratch/eopoku2
+git clone https://github.com/Skovorp/feral.git feral_repo
+pip install -r feral_repo/requirements.txt
+
+# Step 4: Submit FERAL training
+sbatch scripts/train_feral.slurm
+```
 
 ---
 
