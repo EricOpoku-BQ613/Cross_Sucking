@@ -52,10 +52,14 @@ if ! python -c "import torch" 2>/dev/null; then
     REPO_DIR="/lustre/isaac24/scratch/eopoku2/cross_sucking"
     pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 \
         --index-url https://download.pytorch.org/whl/cu121 -q
+    pip install "numpy<2.0" -q
     pip install -r "$REPO_DIR/requirements.txt" -q
     pip install -e "$REPO_DIR" -q
     echo "Installation complete."
 fi
+# Pin numpy < 2.0 (torch 2.1 incompatible with numpy 2.x)
+python -c "import numpy; v=numpy.__version__; assert int(v.split('.')[0])<2, f'numpy {v} too new'" 2>/dev/null \
+    || pip install "numpy<2.0" -q
 echo "PyTorch: $(python -c 'import torch; print(torch.__version__)')"
 
 # ---------------------------------------------------------------------------

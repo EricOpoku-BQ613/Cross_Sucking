@@ -60,6 +60,10 @@ pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 \
 # Verify torch installed before continuing
 python -c "import torch; print('  torch OK:', torch.__version__)"
 
+# Pin numpy < 2.0 (torch 2.1 is incompatible with numpy 2.x)
+pip install "numpy<2.0"
+python -c "import numpy; print('  numpy OK:', numpy.__version__)"
+
 # ---------------------------------------------------------------------------
 # 4. Install project requirements (no torch — already installed above)
 # ---------------------------------------------------------------------------
