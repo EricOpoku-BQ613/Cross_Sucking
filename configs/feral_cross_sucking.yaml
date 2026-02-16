@@ -1,0 +1,66 @@
+# configs/feral_cross_sucking.yaml
+#
+# FERAL (V-JEPA2) config for cross-sucking binary classification.
+# Adapted from default_vjepa.yaml in https://github.com/Skovorp/feral
+#
+# Key differences from default:
+#   - predict_per_item: 16 (our clips are ~90 frames; 64 uses all context per chunk)
+#   - class_weights: inv_freq_sqrt (sqrt(1651/225) = 2.71x tail weight — softer than our focal)
+#   - freeze_encoder_layers: 14 (fine-tune last 12 of 24 — same as FERAL paper)
+#   - num_classes: 2 (ear, tail)
+#   - Training: batch_size=4 (V-JEPA2 ViT-L is large ~330M), 10 epochs
+#   - mixup_alpha: 0.4 (reduced from 0.8 — small dataset, mild mixup)
+#   - wandb: offline mode (ISAAC compute nodes may not have internet)
+#
+# Data paths are set at runtime by train_feral.slurm via run.py CLI args.
+# To run manually:
+#   python run.py \
+#     /lustre/isaac24/scratch/eopoku2/clips_feral \
+#     data/manifests/feral_annotations.json \
+#     --config configs/feral_cross_sucking.yaml
+
+run_name: "cross_sucking_feral_v1"
+
+# V-JEPA2 ViT-L fine-tuned on Diving48 (best general-purpose checkpoint)
+model_name: "facebook/vjepa2-vitl-fpc32-256-diving48"
+
+# Number of output predictions per video chunk
+# (64 = one prediction per frame in the 64-frame chunk)
+predict_per_item: 64
+
+model:
+  fc_drop_rate: 0.5
+  class_weights: inv_freq_sqrt   # sqrt(N_neg/N_pos) per class — softer than inverse
+  freeze_encoder_layers: 14      # Fine-tune last 12 of 24 transformer layers
+
+data:
+  chunk_length: 64       # Frames per input chunk to V-JEPA2
+  chunk_shift: 32        # 50% overlap between consecutive chunks
+  chunk_step: 1          # Sample every frame (no temporal subsampling)
+  resize_to: 256         # Must match clips prepared by resize_clips_feral.sh
+  do_aa: true            # TrivialAugmentWide during training
+  part_sample: 1.0       # Use all training data
+  subsample_keep_rare_threshold: null
+
+training:
+  epochs: 10
+  train_bs: 4            # V-JEPA2 ViT-L (330M) — 4 per GPU with AMP fits A100 40GB
+  val_bs: 8
+  num_workers: 8
+  part_warmup: 0.2       # 20% of iterations for linear LR warmup
+  lr: 4.0e-5
+  weight_decay: 0.1
+  label_smoothing: 0.1
+  compile: false         # Set true if PyTorch 2.1+ and no decord issues
+  patience: 5            # Early stopping on val mAP
+
+mixup_alpha: 0.4         # Moderate mixup — less aggressive than default 0.8
+ema_decay: 0.999
+seed: 42
+device: "cuda"
+starting_checkpoint: null
+
+wandb:
+  key: null              # Set your wandb key or leave null for offline mode
+  entity: null
+  project: "cross_sucking_feral"
