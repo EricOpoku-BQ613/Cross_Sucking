@@ -135,7 +135,7 @@ def main():
 
     # ── model ────────────────────────────────────────────────────────────
     backbone = VideoBackbone(
-        model_name=cfg["model"]["backbone"],
+        name=cfg["model"]["backbone"],
         pretrained=False,      # weights come from checkpoint
     )
     head = LinearHead(
