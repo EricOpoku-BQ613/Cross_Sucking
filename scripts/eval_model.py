@@ -117,11 +117,10 @@ def main():
     clip_dir = cfg["data"].get("clip_dir", None)
     ds = LabeledEventDataset(
         csv_path=tmp.name,
-        label_map=label_map,
+        mode="eval",       # center-crop, no augmentation
         clip_len=int(cfg["clip"]["clip_len"]),
         fps=float(cfg["clip"]["fps"]),
         clip_dir=clip_dir,
-        train=False,       # validation/center-crop transforms
     )
     os.unlink(tmp.name)
 
