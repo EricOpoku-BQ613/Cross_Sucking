@@ -45,7 +45,7 @@ model:
 loss:
   name: "focal"
   gamma: 2.0
-  use_class_weights: true    # 6.85x weight on tail
+  use_class_weights: false   # disabled: balanced_sampling + focal already correct for imbalance
   label_smoothing: 0.05
 
 optim:
@@ -66,7 +66,7 @@ train:
   grad_clip: 1.0
   log_every: 50
   out_dir: "/lustre/isaac24/scratch/eopoku2/runs/sup_binary_v4_mvit"
-  metric_key: "f1_tail"
+  metric_key: "macro_f1"   # f1_tail rewards degenerate all-tail; macro_f1 penalises one-class collapse
   accum_steps: 1
   early_stopping: true
   early_stopping_patience: 15
