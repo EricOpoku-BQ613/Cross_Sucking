@@ -139,7 +139,7 @@ def main():
         pretrained=False,      # weights come from checkpoint
     )
     head = LinearHead(
-        in_features=backbone.out_features,
+        backbone.feat_dim,
         num_classes=num_classes,
         dropout=float(cfg["model"].get("head_dropout", 0.0)),
     )
