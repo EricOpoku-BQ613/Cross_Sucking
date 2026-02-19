@@ -87,7 +87,8 @@ def main():
     ap.add_argument("--test-csv",   required=True, help="CSV manifest to evaluate on")
     ap.add_argument("--split-name", default="test", help="Label for output file (e.g. ood_test)")
     ap.add_argument("--batch-size", type=int, default=8)
-    ap.add_argument("--num-workers",type=int, default=4)
+    ap.add_argument("--num-workers",type=int, default=4,  # keep <=4 for 4K clips; 8 workers OOMs workers
+                    help="DataLoader workers (max 4 for 4K clips on ISAAC)")
     args = ap.parse_args()
 
     cfg = load_cfg(args.config)

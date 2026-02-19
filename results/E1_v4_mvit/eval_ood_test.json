@@ -1,0 +1,30 @@
+{
+  "split": "ood_test",
+  "checkpoint": "/lustre/isaac24/scratch/eopoku2/runs/sup_binary_v4_mvit/best.ckpt",
+  "epoch": 3,
+  "n_samples": 141,
+  "metrics": {
+    "accuracy": 0.6666666865348816,
+    "macro_f1": 0.4539836645126343,
+    "macro_recall": 0.4777131676673889,
+    "macro_precision": 0.491585373878479,
+    "confusion_matrix": [
+      [
+        91,
+        38
+      ],
+      [
+        9,
+        3
+      ]
+    ],
+    "f1_ear": 0.7947598099708557,
+    "recall_ear": 0.7054263353347778,
+    "precision_ear": 0.9100000262260437,
+    "support_ear": 129,
+    "f1_tail": 0.11320754885673523,
+    "recall_tail": 0.25,
+    "precision_tail": 0.0731707289814949,
+    "support_tail": 12
+  }
+}

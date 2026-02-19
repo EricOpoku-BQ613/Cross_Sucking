@@ -1,0 +1,81 @@
+# configs/train_binary_v4c_mvit_isaac.yaml
+#
+# E1c: MViTv2-S — regularization improvements only, no class weights
+#
+# History of class weight experiments:
+#   E1  (v4):  no weights, balanced_sampling → tail recall 0.21 (val), all-ear drift
+#   E1b (v4b): inv_sqrt (2.71x) + balanced_sampling → all-TAIL collapse by epoch 3
+#   E1c (v4c): no weights + balanced_sampling — same as E1, but with all regularization
+#              improvements from E1b diagnosis (lower LR, longer warmup, more dropout,
+#              stronger weight_decay, harder mixup)
+#
+# Hypothesis: E1 collapsed to ear because LR was too high (2e-5) and warmup too short (5 ep).
+#             With LR=1e-5 and warmup=8, the model has more time to learn both classes
+#             before the backbone warms up and starts over-committing.
+#             Added regularization (dropout 0.5, wd 0.10) should slow memorization.
+#
+# To submit: sbatch scripts/train_isaac_v4c.slurm
+
+seed: 42
+device: "cuda"
+
+data:
+  train_csv: "data/manifests/train_v4.csv"
+  val_csv: "data/manifests/val_v4.csv"
+  clip_dir: "/lustre/isaac24/scratch/eopoku2/clips_v4/clips_v4"
+
+  balanced_sampling: true    # 50/50 ear:tail per batch — ONLY correction for imbalance
+  filter_to_id: true
+  num_workers: 8
+  batch_size: 8              # safe on T4 (15 GB) and V100S (32 GB)
+
+clip:
+  clip_len: 16
+  fps: 12
+
+labels:
+  num_classes: 2
+  class_names: ["ear", "tail"]
+  id_labels: ["ear", "tail"]
+
+model:
+  backbone: "mvit_v2_s"
+  pretrained: true
+  head: "linear"
+  head_dropout: 0.5          # was 0.3 in E1 — slows head over-commitment to ear
+
+loss:
+  name: "focal"
+  gamma: 2.0
+  use_class_weights: false   # NO class weights — balanced_sampling is the single correction
+  label_smoothing: 0.05
+
+optim:
+  name: "adamw"
+  lr: 0.00001                # was 0.00002 in E1 — lower LR gives more stable warmup
+  weight_decay: 0.10         # was 0.05 in E1 — stronger L2 to slow memorization
+
+sched:
+  name: "cosine_warmup"
+  t_max: 50
+  min_lr: 0.0000005
+  warmup_epochs: 8           # was 5 in E1 — E1 peaked at epoch 3 mid-warmup
+  warmup_start_lr: 0.0000005
+
+train:
+  epochs: 50
+  amp: true
+  grad_clip: 1.0
+  log_every: 50
+  out_dir: "/lustre/isaac24/scratch/eopoku2/runs/sup_binary_v4c_mvit"
+  metric_key: "macro_f1"
+  accum_steps: 2             # 8 × 2 = effective batch 16
+  early_stopping: true
+  early_stopping_patience: 20
+  early_stopping_min_delta: 0.001
+  save_per_sample_loss: true
+
+augmentation:
+  use_trivial_augment: true
+  use_mixup: true
+  mixup_alpha: 0.6           # was 0.4 in E1 — harder mixing, less overconfidence

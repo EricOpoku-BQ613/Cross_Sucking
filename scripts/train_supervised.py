@@ -197,6 +197,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", type=str, default="configs/train.yaml")
     ap.add_argument("--resume", type=str, default=None, help="Path to a .ckpt to resume from (e.g., runs/.../last.ckpt)")
+    ap.add_argument("--weights-path", type=str, default=None,
+                    help="Load model weights only from a checkpoint (no optimizer/scheduler state). "
+                         "Use for two-stage fine-tuning: stage-1 trains frozen backbone, "
+                         "stage-2 loads stage-1 weights and unfreezes backbone with fresh optimizer.")
     
     args = ap.parse_args()
 
@@ -403,6 +407,14 @@ def main():
         num_classes=num_classes,
         cfg=tcfg,
     )
+
+    # Two-stage fine-tuning: load weights only (fresh optimizer) for stage 2
+    if args.weights_path:
+        ckpt = torch.load(args.weights_path, map_location=device, weights_only=False)
+        model.load_state_dict(ckpt["model"])
+        print(f"[Weights] Loaded model weights from {args.weights_path} (optimizer NOT restored — fresh start)")
+        print(f"[Weights] Checkpoint was epoch={ckpt.get('epoch','?')}, "
+              f"val_macro_f1={ckpt.get('val_stats',{}).get('macro_f1','?'):.4f}")
 
     trainer.fit(dl_train, dl_val, resume_path=args.resume)
     print(f"\nDone. Artifacts in: {out_dir.resolve()}")

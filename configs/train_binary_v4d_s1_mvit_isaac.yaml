@@ -1,0 +1,75 @@
+# configs/train_binary_v4d_s1_mvit_isaac.yaml
+#
+# E1d Stage 1: FROZEN backbone — head calibration only
+#
+# The backbone is frozen. Only the linear head is trained.
+# High LR is safe because only 2 weight matrices (768->2) are updated.
+# Goal: find the best linear classifier on top of frozen K400 pretrained features.
+# After this stage, Stage 2 unfreezes the backbone at a tiny LR.
+#
+# To submit: sbatch scripts/train_isaac_v4d_s1.slurm
+
+seed: 42
+device: "cuda"
+
+data:
+  train_csv: "data/manifests/train_v4.csv"
+  val_csv: "data/manifests/val_v4.csv"
+  clip_dir: "/lustre/isaac24/scratch/eopoku2/clips_v4/clips_v4"
+
+  balanced_sampling: true
+  filter_to_id: true
+  num_workers: 8
+  batch_size: 8
+
+clip:
+  clip_len: 16
+  fps: 12
+
+labels:
+  num_classes: 2
+  class_names: ["ear", "tail"]
+  id_labels: ["ear", "tail"]
+
+model:
+  backbone: "mvit_v2_s"
+  pretrained: true
+  freeze_backbone: true      # STAGE 1: backbone completely frozen, head only
+  head: "linear"
+  head_dropout: 0.5
+
+loss:
+  name: "focal"
+  gamma: 2.0
+  use_class_weights: false   # balanced_sampling is the single correction
+  label_smoothing: 0.05
+
+optim:
+  name: "adamw"
+  lr: 0.0005                 # high LR is safe — only 2 weight matrices updating
+  weight_decay: 0.10
+
+sched:
+  name: "cosine_warmup"
+  t_max: 25
+  min_lr: 0.00001
+  warmup_epochs: 3           # short warmup — head is randomly initialized
+  warmup_start_lr: 0.00005
+
+train:
+  epochs: 25
+  amp: true
+  grad_clip: 1.0
+  log_every: 50
+  out_dir: "/lustre/isaac24/scratch/eopoku2/runs/sup_binary_v4d_s1_mvit"
+  metric_key: "macro_f1"
+  accum_steps: 2
+  early_stopping: true
+  early_stopping_patience: 10   # shorter patience — head converges fast
+  early_stopping_min_delta: 0.001
+  save_per_sample_loss: false
+
+augmentation:
+  use_trivial_augment: true
+  use_mixup: true
+  mixup_alpha: 0.6

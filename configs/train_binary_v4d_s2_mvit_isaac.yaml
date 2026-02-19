@@ -1,0 +1,80 @@
+# configs/train_binary_v4d_s2_mvit_isaac.yaml
+#
+# E1d Stage 2: UNFROZEN backbone — careful full fine-tuning
+#
+# Loads Stage 1 best.ckpt weights (head already calibrated on frozen features).
+# Unfreezes backbone but uses a VERY low LR (2e-6) to prevent majority-class takeover.
+# Optimizer is fresh (no AdamW momentum from Stage 1) so backbone gets clean gradients.
+#
+# Submit AFTER Stage 1 completes. Use --weights-path to load Stage 1 weights:
+#
+#   python scripts/train_supervised.py \
+#     --config configs/train_binary_v4d_s2_mvit_isaac.yaml \
+#     --weights-path /lustre/isaac24/scratch/eopoku2/runs/sup_binary_v4d_s1_mvit/best.ckpt
+#
+# To submit: sbatch scripts/train_isaac_v4d_s2.slurm
+
+seed: 42
+device: "cuda"
+
+data:
+  train_csv: "data/manifests/train_v4.csv"
+  val_csv: "data/manifests/val_v4.csv"
+  clip_dir: "/lustre/isaac24/scratch/eopoku2/clips_v4/clips_v4"
+
+  balanced_sampling: true
+  filter_to_id: true
+  num_workers: 8
+  batch_size: 8
+
+clip:
+  clip_len: 16
+  fps: 12
+
+labels:
+  num_classes: 2
+  class_names: ["ear", "tail"]
+  id_labels: ["ear", "tail"]
+
+model:
+  backbone: "mvit_v2_s"
+  pretrained: false          # weights loaded from Stage 1 via --weights-path
+  freeze_backbone: false     # STAGE 2: backbone now unfrozen
+  head: "linear"
+  head_dropout: 0.5
+
+loss:
+  name: "focal"
+  gamma: 2.0
+  use_class_weights: false
+  label_smoothing: 0.05
+
+optim:
+  name: "adamw"
+  lr: 0.000002               # 2e-6 — very low; E1c collapsed at 1e-5, safe zone was ≤7e-6
+  weight_decay: 0.10
+
+sched:
+  name: "cosine_warmup"
+  t_max: 30
+  min_lr: 0.0000001
+  warmup_epochs: 5           # gentle warmup from near-zero to 2e-6
+  warmup_start_lr: 0.0000002
+
+train:
+  epochs: 30
+  amp: true
+  grad_clip: 1.0
+  log_every: 50
+  out_dir: "/lustre/isaac24/scratch/eopoku2/runs/sup_binary_v4d_s2_mvit"
+  metric_key: "macro_f1"
+  accum_steps: 2
+  early_stopping: true
+  early_stopping_patience: 15
+  early_stopping_min_delta: 0.001
+  save_per_sample_loss: true
+
+augmentation:
+  use_trivial_augment: true
+  use_mixup: true
+  mixup_alpha: 0.6

@@ -1,0 +1,83 @@
+# configs/train_binary_v4b_mvit_isaac.yaml
+#
+# E1b: MViTv2-S — improved hyperparameters after E1 analysis
+#
+# Changes from v4 (E1):
+#   - use_class_weights: true, weight_method: inv_sqrt
+#       inv_sqrt gives sqrt(1651/225) ≈ 2.71x on tail — gentle nudge
+#       (v4 used inv_freq = 6.85x which caused all-tail collapse)
+#   - lr: 1e-5 (was 2e-5) — more careful fine-tuning of pretrained weights
+#   - warmup_epochs: 8 (was 5) — v4 peaked at epoch 3 mid-warmup, need more
+#   - early_stopping_patience: 20 (was 15) — give model room to recover
+#   - head_dropout: 0.5 (was 0.3) — head over-committed to ear by epoch 2; more dropout slows this
+#   - weight_decay: 0.10 (was 0.05) — train/val gap 0.34 by epoch 17; stronger L2 regularization
+#   - mixup_alpha: 0.6 (was 0.4) — harder mixing forces learning at intermediate class mixtures
+#   - batch_size: 8 + accum_steps: 2 — safe on T4 (15 GB); effective batch = 16 unchanged
+#   - out_dir: new run dir so v4 best.ckpt is preserved for comparison
+#
+# To submit: sbatch scripts/train_isaac_v4b.slurm
+
+seed: 42
+device: "cuda"
+
+data:
+  train_csv: "data/manifests/train_v4.csv"
+  val_csv: "data/manifests/val_v4.csv"
+  clip_dir: "/lustre/isaac24/scratch/eopoku2/clips_v4/clips_v4"
+
+  balanced_sampling: true
+  filter_to_id: true
+  num_workers: 8
+  batch_size: 8          # reduced from 16 — safe on T4 (15 GB) and V100S (32 GB)
+
+clip:
+  clip_len: 16
+  fps: 12
+
+labels:
+  num_classes: 2
+  class_names: ["ear", "tail"]
+  id_labels: ["ear", "tail"]
+
+model:
+  backbone: "mvit_v2_s"
+  pretrained: true
+  head: "linear"
+  head_dropout: 0.5       # was 0.3 — head over-committed to ear by epoch 2; slower commitment
+
+loss:
+  name: "focal"
+  gamma: 2.0
+  use_class_weights: true     # inv_sqrt: sqrt(1651/225) ≈ 2.71x on tail (gentle vs inv_freq=6.85x)
+  weight_method: "inv_sqrt"   # options: inv_freq | inv_sqrt | manual
+  label_smoothing: 0.05
+
+optim:
+  name: "adamw"
+  lr: 0.00001         # was 0.00002 — halved for more stable fine-tuning
+  weight_decay: 0.10      # was 0.05 — train-val gap 0.34 at epoch 17; stronger L2 to slow memorization
+
+sched:
+  name: "cosine_warmup"
+  t_max: 50
+  min_lr: 0.0000005
+  warmup_epochs: 8            # was 5 — v4 peaked at epoch 3 inside warmup
+  warmup_start_lr: 0.0000005
+
+train:
+  epochs: 50
+  amp: true
+  grad_clip: 1.0
+  log_every: 50
+  out_dir: "/lustre/isaac24/scratch/eopoku2/runs/sup_binary_v4b_mvit"
+  metric_key: "macro_f1"
+  accum_steps: 2          # 8 × 2 = effective batch 16, same training dynamics as original batch_size=16
+  early_stopping: true
+  early_stopping_patience: 20   # was 15
+  early_stopping_min_delta: 0.001
+  save_per_sample_loss: true
+
+augmentation:
+  use_trivial_augment: true
+  use_mixup: true
+  mixup_alpha: 0.6        # was 0.4 — harder mixing prevents overconfidence on ear features

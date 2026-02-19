@@ -155,7 +155,7 @@ def main():
     parser.add_argument("--batch-size", type=int, default=8,
                        help="Batch size for inference")
     parser.add_argument("--num-workers", type=int, default=4,
-                       help="Number of data loader workers")
+                       help="DataLoader workers (max 4 for 4K clips on ISAAC; 8 OOMs workers)")
     parser.add_argument("--filter-labels", type=str, nargs="*", default=None,
                        help="Only include these labels (e.g., --filter-labels ear tail)")
     
@@ -204,11 +204,13 @@ def main():
     manifest_df.to_csv(temp_manifest, index=False)
     
     # Create dataset
+    clip_dir = cfg["data"].get("clip_dir", None)
     dataset = LabeledEventDataset(
         str(temp_manifest),
         mode="eval",
         clip_len=int(cfg["clip"]["clip_len"]),
         fps=int(cfg["clip"]["fps"]),
+        clip_dir=clip_dir,
     )
     
     dataloader = DataLoader(
@@ -255,6 +257,38 @@ def main():
         cls_total = mask.sum()
         cls_acc = cls_correct / cls_total if cls_total > 0 else 0
         print(f"  {label}: {cls_acc:.4f} ({cls_correct}/{cls_total})")
+
+    # Threshold calibration sweep (binary: ear vs tail)
+    if "prob_tail" in predictions_df.columns and "prob_ear" in predictions_df.columns:
+        print(f"\n{'='*60}")
+        print("THRESHOLD CALIBRATION SWEEP (binary ear vs tail)")
+        print(f"{'='*60}")
+        import numpy as np
+        thresholds = np.arange(0.10, 0.91, 0.05)
+        best_thresh, best_macro_f1 = 0.5, 0.0
+        print(f"{'Thresh':>7}  {'TailPrec':>9}  {'TailRec':>8}  {'TailF1':>7}  {'EarF1':>7}  {'MacroF1':>8}")
+        for t in thresholds:
+            preds_t = predictions_df["prob_tail"].apply(lambda p: "tail" if p >= t else "ear")
+            true = predictions_df["true_label"]
+            tp_tail = ((preds_t == "tail") & (true == "tail")).sum()
+            fp_tail = ((preds_t == "tail") & (true == "ear")).sum()
+            fn_tail = ((preds_t == "ear") & (true == "tail")).sum()
+            tp_ear  = ((preds_t == "ear") & (true == "ear")).sum()
+            fp_ear  = ((preds_t == "ear") & (true == "tail")).sum()
+            fn_ear  = ((preds_t == "tail") & (true == "ear")).sum()
+            prec_tail = tp_tail / (tp_tail + fp_tail + 1e-8)
+            rec_tail  = tp_tail / (tp_tail + fn_tail + 1e-8)
+            f1_tail   = 2 * prec_tail * rec_tail / (prec_tail + rec_tail + 1e-8)
+            prec_ear  = tp_ear  / (tp_ear  + fp_ear  + 1e-8)
+            rec_ear   = tp_ear  / (tp_ear  + fn_ear  + 1e-8)
+            f1_ear    = 2 * prec_ear  * rec_ear  / (prec_ear  + rec_ear  + 1e-8)
+            macro_f1  = (f1_tail + f1_ear) / 2
+            marker = " <-- best" if macro_f1 > best_macro_f1 else ""
+            if macro_f1 > best_macro_f1:
+                best_macro_f1 = macro_f1
+                best_thresh = t
+            print(f"  {t:.2f}   {prec_tail:9.4f}  {rec_tail:8.4f}  {f1_tail:7.4f}  {f1_ear:7.4f}  {macro_f1:8.4f}{marker}")
+        print(f"\nBest threshold: {best_thresh:.2f}  -> macro_f1={best_macro_f1:.4f}")
 
 
 if __name__ == "__main__":
