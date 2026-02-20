@@ -82,14 +82,16 @@ def extract_ffmpeg(video_path: str, clip_start: float, clip_end: float,
         return True  # skip existing
 
     duration = round(clip_end - clip_start, 3)
-    vf = "hflip" if flip else "copy"
 
     cmd = [
         "ffmpeg", "-y", "-loglevel", "error",
         "-ss", str(clip_start),
         "-i", video_path,
         "-t", str(duration),
-        "-vf", vf,
+    ]
+    if flip:
+        cmd += ["-vf", "hflip"]
+    cmd += [
         "-c:v", "libx264", "-crf", str(crf), "-preset", "fast",
         "-an",
         str(output_path),
@@ -131,8 +133,10 @@ def main():
     # --- Count expected clips ---
     total_tail_clips = 0
     for _, row in tail_rows.iterrows():
+        evt_start = float(row["event_offset_sec"])
+        evt_end = evt_start + float(row["duration_sec"])
         wins = compute_windows(
-            float(row["event_start"]), float(row["event_end"]),
+            evt_start, evt_end,
             CLIP_LEN_SEC, args.overlap, args.max_clips_per_event,
         )
         total_tail_clips += len(wins) * (2 if args.flip else 1)
@@ -155,7 +159,9 @@ def main():
     # --- EAR: keep as-is ---
     for _, row in ear_rows.iterrows():
         r = row.to_dict()
+        r["clip_id"] = f"evt_{int(row['event_idx'])}_{row['behavior'].lower()}"
         r["clip_dir"] = args.clip_dir
+        r["_base_event_idx"] = int(row["event_idx"])
         new_rows.append(r)
 
     # --- TAIL: sliding window + flip ---
@@ -165,9 +171,9 @@ def main():
 
     for i, (_, row) in enumerate(tail_list):
         video_path  = str(row["video_path"])
-        base_id     = str(row["clip_id"])
-        event_start = float(row["event_start"])
-        event_end   = float(row["event_end"])
+        base_id     = f"evt_{int(row['event_idx'])}_{row['behavior'].lower()}"
+        event_start = float(row["event_offset_sec"])
+        event_end   = event_start + float(row["duration_sec"])
 
         windows = compute_windows(event_start, event_end,
                                   CLIP_LEN_SEC, args.overlap,
@@ -189,6 +195,7 @@ def main():
                 r = row.to_dict()
                 r["clip_id"]  = clip_id
                 r["clip_dir"] = str(out_dir)
+                r["_base_event_idx"] = int(row["event_idx"])
                 new_rows.append(r)
 
         if (i + 1) % 10 == 0:
@@ -196,7 +203,8 @@ def main():
                   f"clips extracted: {extracted_ok} ok, {extracted_fail} fail")
 
     new_df = pd.DataFrame(new_rows)
-    new_df.to_csv(args.output_manifest, index=False)
+    # Save master manifest without internal tracking column
+    new_df.drop(columns=["_base_event_idx"]).to_csv(args.output_manifest, index=False)
 
     tail_total = (new_df["behavior"].str.lower() == "tail").sum()
     ear_total  = (new_df["behavior"].str.lower() == "ear").sum()
@@ -211,12 +219,11 @@ def main():
         if not split_path.exists():
             continue
         split_df  = pd.read_csv(split_path)
-        split_ids = set(split_df["clip_id"])  # original base IDs
+        split_event_ids = set(split_df["event_idx"])
 
-        # A new row belongs to a split if its base clip_id (strip suffix) is in split_ids
-        new_df["_base"] = new_df["clip_id"].str.replace(r"_w\d+(_f)?$", "", regex=True)
-        split_new = new_df[new_df["_base"].isin(split_ids)].drop(columns=["_base"])
-        new_df.drop(columns=["_base"], inplace=True, errors="ignore")
+        # A new row belongs to a split if its base event_idx is in the original split
+        split_new = new_df[new_df["_base_event_idx"].isin(split_event_ids)].copy()
+        split_new = split_new.drop(columns=["_base_event_idx"])
 
         out_split = manifest_dir / split_file.replace("_v4", "_v5")
         split_new.to_csv(out_split, index=False)

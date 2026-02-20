@@ -15,6 +15,7 @@
 #SBATCH --job-name=resize_feral
 #SBATCH --account=acf-utk0011
 #SBATCH --partition=campus
+#SBATCH --qos=campus
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
@@ -24,6 +25,23 @@
 #SBATCH --error=/lustre/isaac24/scratch/eopoku2/runs/resize_feral_%j.log
 
 set -e
+
+# Activate conda env (provides ffmpeg + python)
+if [ -f "$HOME/miniforge3/etc/profile.d/conda.sh" ]; then
+    source "$HOME/miniforge3/etc/profile.d/conda.sh"
+elif [ -f "$HOME/anaconda3/etc/profile.d/conda.sh" ]; then
+    source "$HOME/anaconda3/etc/profile.d/conda.sh"
+else
+    eval "$(conda shell.bash hook)"
+fi
+conda activate cross_sucking
+
+# Verify ffmpeg is available
+if ! command -v ffmpeg &>/dev/null; then
+    echo "ERROR: ffmpeg not found. Install with: conda install -c conda-forge ffmpeg"
+    exit 1
+fi
+echo "ffmpeg: $(which ffmpeg)"
 
 SRC="/lustre/isaac24/scratch/eopoku2/clips_v4/clips_v4"
 DST="/lustre/isaac24/scratch/eopoku2/clips_feral"
@@ -63,8 +81,6 @@ if command -v parallel &>/dev/null; then
     '
 else
     echo "GNU parallel not found — using Python multiprocessing"
-    source ~/miniforge3/etc/profile.d/conda.sh
-    conda activate cross_sucking
 
     python - <<'PYEOF'
 import subprocess
